@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-label="ฉากฟุตบอลตัวอย่างสำหรับทดลอง TactiVision">
+  <defs>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#236848"/>
+      <stop offset="1" stop-color="#123d2c"/>
+    </linearGradient>
+    <pattern id="stripe" width="180" height="700" patternUnits="userSpaceOnUse">
+      <rect width="90" height="700" fill="#ffffff" opacity=".035"/>
+    </pattern>
+    <filter id="shadow"><feDropShadow dx="0" dy="8" stdDeviation="6" flood-opacity=".35"/></filter>
+  </defs>
+  <rect width="1200" height="700" fill="#071512"/>
+  <rect x="60" y="50" width="1080" height="600" rx="8" fill="url(#grass)"/>
+  <rect x="60" y="50" width="1080" height="600" fill="url(#stripe)"/>
+  <g fill="none" stroke="#d9f3e7" stroke-width="4" opacity=".82">
+    <rect x="60" y="50" width="1080" height="600"/>
+    <path d="M600 50V650"/>
+    <circle cx="600" cy="350" r="78"/>
+    <circle cx="600" cy="350" r="4" fill="#d9f3e7"/>
+    <rect x="60" y="205" width="190" height="290"/>
+    <rect x="950" y="205" width="190" height="290"/>
+    <rect x="60" y="280" width="75" height="140"/>
+    <rect x="1065" y="280" width="75" height="140"/>
+    <path d="M250 285a78 78 0 0 1 0 130M950 285a78 78 0 0 0 0 130"/>
+  </g>
+  <g font-family="Arial, sans-serif" font-size="16" font-weight="700" text-anchor="middle" filter="url(#shadow)">
+    <g fill="#50d9ff" stroke="#062a34" stroke-width="3">
+      <circle cx="274" cy="300" r="13"/><path d="M274 313v30M258 326h32M274 343l-12 18M274 343l12 18"/>
+      <circle cx="439" cy="225" r="13"/><path d="M439 238v30M423 251h32M439 268l-12 18M439 268l12 18"/>
+      <circle cx="529" cy="430" r="13"/><path d="M529 443v30M513 456h32M529 473l-12 18M529 473l12 18"/>
+      <circle cx="744" cy="265" r="13"/><path d="M744 278v30M728 291h32M744 308l-12 18M744 308l12 18"/>
+      <circle cx="909" cy="405" r="13"/><path d="M909 418v30M893 431h32M909 448l-12 18M909 448l12 18"/>
+    </g>
+    <g fill="#ff7d87" stroke="#40141b" stroke-width="3">
+      <circle cx="399" cy="370" r="13"/><path d="M399 383v30M383 396h32M399 413l-12 18M399 413l12 18"/>
+      <circle cx="584" cy="285" r="13"/><path d="M584 298v30M568 311h32M584 328l-12 18M584 328l12 18"/>
+      <circle cx="679" cy="385" r="13"/><path d="M679 398v30M663 411h32M679 428l-12 18M679 428l12 18"/>
+      <circle cx="829" cy="200" r="13"/><path d="M829 213v30M813 226h32M829 243l-12 18M829 243l12 18"/>
+      <circle cx="979" cy="315" r="13"/><path d="M979 328v30M963 341h32M979 358l-12 18M979 358l12 18"/>
+    </g>
+  </g>
+  <circle cx="292" cy="345" r="8" fill="#fff" stroke="#091c18" stroke-width="3"/>
+  <text x="92" y="90" fill="#e8f4ef" opacity=".7" font-family="Arial, sans-serif" font-size="18">TACTIVISION · SAMPLE SCENE</text>
+</svg>
+
