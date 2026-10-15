@@ -45,6 +45,8 @@ $env:MODEL_PATH = "backend/models/best.pt"
 
 อ่านรายละเอียด API ที่ [docs/API.md](docs/API.md) และสมมติฐานการจำลองที่ [docs/ASSUMPTIONS.md](docs/ASSUMPTIONS.md)
 
+อ่านหลักฐานและค่าความเร็วพาสที่เตรียมไว้สำหรับการสอบเทียบที่ [docs/PASS_SPEED_RESEARCH.md](docs/PASS_SPEED_RESEARCH.md)
+
 อ่านขั้นตอน Deploy Frontend บน Cloudflare Pages, Backend บน Render และตั้ง GitHub Actions ที่ [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ## ทำงานร่วมกันบน GitHub
