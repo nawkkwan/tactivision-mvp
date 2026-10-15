@@ -21,6 +21,7 @@ const defaultParameters: SimulationParameters = {
   chip_speed: 14,
   chip_apex_height: 3,
   defender_speed: 7,
+  attacker_speed: 7,
   reaction_time: 0.3,
   reach_radius: 1,
   sample_step: 0.5,
@@ -606,6 +607,7 @@ function App() {
                       ["chip_speed", "Chip speed", "m/s", 1, 40, 0.5],
                       ["chip_apex_height", "Chip apex", "m", 1, 8, 0.25],
                       ["defender_speed", "Defender speed", "m/s", 1, 15, 0.5],
+                      ["attacker_speed", "Attacker speed", "m/s", 1, 15, 0.5],
                       ["reaction_time", "Reaction time", "s", 0, 3, 0.1],
                       ["reach_radius", "Reach radius", "m", 0, 3, 0.1],
                     ] as const).map(([key, label, unit, min, max, increment]) => (
@@ -637,6 +639,9 @@ function App() {
                         <div><dt>รูปแบบ</dt><dd>{activeComparison.result.pass_type.toUpperCase()}</dd></div>
                         <div><dt>เวลาบอล</dt><dd>{activeComparison.result.ball_time.toFixed(3)} s</dd></div>
                         <div><dt>ผู้สกัด</dt><dd>{activeComparison.result.interceptor_id ?? "ไม่มี"}</dd></div>
+                        <div><dt>ผู้รับที่เร็วที่สุด</dt><dd>{activeComparison.result.receiver_id ?? "ไม่มี"}</dd></div>
+                        <div><dt>เวลาผู้รับถึงจุด</dt><dd>{activeComparison.result.receiver_arrival_time?.toFixed(3) ?? "—"} s</dd></div>
+                        <div><dt>ผู้รับเทียบกับบอล</dt><dd>{activeComparison.result.receiver_ball_margin?.toFixed(3) ?? "—"} s</dd></div>
                         <div><dt>Time margin</dt><dd>{activeComparison.result.minimum_margin?.toFixed(3) ?? "—"} s</dd></div>
                       </dl>
                       <p>{activeComparison.result.disclaimer}</p>

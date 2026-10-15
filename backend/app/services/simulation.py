@@ -55,10 +55,22 @@ def _intercept_height(defender: SimulationPlayer) -> float:
     )
 
 
+def _arrival_time(
+    player: SimulationPlayer,
+    point: Point2D,
+    speed: float,
+    reaction_time: float,
+    reach_radius: float,
+) -> float:
+    run_distance = max(0.0, _distance(player.position, point) - reach_radius)
+    return reaction_time + run_distance / speed
+
+
 def _best_interception_attempt(
     carrier_position: Point2D,
     target: Point2D,
     defender: SimulationPlayer,
+    teammates: list[SimulationPlayer],
     payload: SimulateRequest,
     pass_distance: float,
     sample_count: int,
@@ -71,6 +83,12 @@ def _best_interception_attempt(
     best_point = target
     best_ratio = 1.0
     best_height = 0.0
+    best_ball_time = 0.0
+    best_defender_time = 0.0
+    best_teammate: SimulationPlayer | None = None
+    best_teammate_time: float | None = None
+    best_ball_margin = math.inf
+    best_teammate_margin: float | None = None
 
     for index in range(1, sample_count + 1):
         ratio = index / sample_count
@@ -82,14 +100,56 @@ def _best_interception_attempt(
         if ball_height > _intercept_height(defender):
             continue
         ball_time = (pass_distance * ratio) / ball_speed
-        run_distance = max(0.0, _distance(defender.position, point) - parameters.reach_radius)
-        defender_time = parameters.reaction_time + run_distance / parameters.defender_speed
-        margin = defender_time - ball_time
+        defender_time = _arrival_time(
+            defender,
+            point,
+            parameters.defender_speed,
+            parameters.reaction_time,
+            parameters.reach_radius,
+        )
+        ball_margin = defender_time - ball_time
+        fastest_teammate: SimulationPlayer | None = None
+        fastest_teammate_time: float | None = None
+        if teammates:
+            teammate_times = [
+                (
+                    teammate,
+                    _arrival_time(
+                        teammate,
+                        point,
+                        parameters.attacker_speed,
+                        parameters.reaction_time,
+                        parameters.reach_radius,
+                    ),
+                )
+                for teammate in teammates
+            ]
+            fastest_teammate, fastest_teammate_time = min(
+                teammate_times, key=lambda item: item[1]
+            )
+        teammate_margin = (
+            defender_time - fastest_teammate_time
+            if fastest_teammate_time is not None
+            else None
+        )
+        # A defender must both meet the ball and beat the nearest supporting
+        # teammate. The larger margin represents the harder of those two tests.
+        margin = (
+            max(ball_margin, teammate_margin)
+            if teammate_margin is not None
+            else ball_margin
+        )
         if margin < minimum_margin:
             minimum_margin = margin
             best_point = point
             best_ratio = ratio
             best_height = ball_height
+            best_ball_time = ball_time
+            best_defender_time = defender_time
+            best_teammate = fastest_teammate
+            best_teammate_time = fastest_teammate_time
+            best_ball_margin = ball_margin
+            best_teammate_margin = teammate_margin
 
     return SimulationInterceptor(
         player_id=defender.id,
@@ -97,6 +157,14 @@ def _best_interception_attempt(
         time_margin=round(minimum_margin, 3),
         path_progress_ratio=round(best_ratio, 3),
         ball_height=round(best_height, 3),
+        ball_time=round(best_ball_time, 3),
+        defender_time=round(best_defender_time, 3),
+        teammate_id=best_teammate.id if best_teammate else None,
+        teammate_time=round(best_teammate_time, 3) if best_teammate_time is not None else None,
+        ball_time_margin=round(best_ball_margin, 3),
+        teammate_time_margin=(
+            round(best_teammate_margin, 3) if best_teammate_margin is not None else None
+        ),
     )
 
 
@@ -111,6 +179,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
         raise HTTPException(status_code=422, detail="Ball Carrier อยู่นอกขอบเขตสนาม 105 × 68 เมตร")
 
     target = payload.target.position
+    selected_receiver: SimulationPlayer | None = None
     if payload.target.type == "receiver":
         receiver = players_by_id.get(payload.target.receiver_id or "")
         if receiver is None:
@@ -122,6 +191,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
         # Use the calibrated player position as the source of truth instead of
         # trusting a second, client-provided copy of the receiver position.
         target = receiver.position
+        selected_receiver = receiver
 
     if not _is_on_pitch(target):
         raise HTTPException(status_code=422, detail="เป้าหมายอยู่นอกขอบเขตสนาม 105 × 68 เมตร")
@@ -138,6 +208,36 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
         for player in payload.players
         if player.team_id != carrier.team_id and player.team_id.value != "unassigned"
     ]
+    teammates = [
+        player
+        for player in payload.players
+        if player.team_id == carrier.team_id and player.id != carrier.id
+    ]
+    eligible_teammates = [selected_receiver] if selected_receiver else teammates
+    receiver: SimulationPlayer | None = None
+    receiver_arrival_time: float | None = None
+    if eligible_teammates:
+        receiver, receiver_arrival_time = min(
+            [
+                (
+                    teammate,
+                    _arrival_time(
+                        teammate,
+                        target,
+                        parameters.attacker_speed,
+                        parameters.reaction_time,
+                        parameters.reach_radius,
+                    ),
+                )
+                for teammate in eligible_teammates
+            ],
+            key=lambda item: item[1],
+        )
+    receiver_ball_margin = (
+        receiver_arrival_time - ball_time_total
+        if receiver_arrival_time is not None
+        else None
+    )
 
     if not opponents:
         return SimulateResponse(
@@ -149,6 +249,13 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
             interceptor_id=None,
             intercept_point=None,
             minimum_margin=None,
+            receiver_id=receiver.id if receiver else None,
+            receiver_arrival_time=(
+                round(receiver_arrival_time, 3) if receiver_arrival_time is not None else None
+            ),
+            receiver_ball_margin=(
+                round(receiver_ball_margin, 3) if receiver_ball_margin is not None else None
+            ),
             interceptors=[],
             explanation="ความเสี่ยง 0% — ไม่มีผู้เล่นฝ่ายตรงข้ามที่มีพิกัดพร้อมสำหรับการคำนวณ",
         )
@@ -159,6 +266,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
             carrier_position=carrier.position,
             target=target,
             defender=defender,
+            teammates=eligible_teammates,
             payload=payload,
             pass_distance=pass_distance,
             sample_count=sample_count,
@@ -187,9 +295,15 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
     intercept_point = closest_attempt.intercept_point if risk != "low" else None
     subject = f"ผู้เล่น {closest_attempt.player_id}" if risk != "low" else "ผู้เล่นฝ่ายตรงข้ามที่ใกล้ที่สุด"
     pass_label = "ลูกชิพ" if payload.pass_type == "chip" else "ลูกเรียด"
+    receiver_detail = (
+        f" โดย {receiver.id} เป็นผู้เล่นฝ่ายเดียวกันที่ถึงจุดรับเร็วที่สุด "
+        f"({receiver_arrival_time:.2f} วินาที)"
+        if receiver is not None and receiver_arrival_time is not None
+        else " โดยไม่พบเพื่อนร่วมทีมที่เข้าถึงจุดรับ"
+    )
     explanation = (
         f"{pass_label}: ดัชนีความเสี่ยงถูกตัดบอล {risk_percent}% ({risk.title()}) — {subject} {detail} "
-        f"ภายใต้สมมติฐานที่กำหนด"
+        f"ภายใต้สมมติฐานที่กำหนด{receiver_detail}"
     )
     return SimulateResponse(
         pass_type=payload.pass_type,
@@ -200,6 +314,13 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
         interceptor_id=interceptor_id,
         intercept_point=intercept_point,
         minimum_margin=round(minimum_margin, 3),
+        receiver_id=receiver.id if receiver else None,
+        receiver_arrival_time=(
+            round(receiver_arrival_time, 3) if receiver_arrival_time is not None else None
+        ),
+        receiver_ball_margin=(
+            round(receiver_ball_margin, 3) if receiver_ball_margin is not None else None
+        ),
         interceptors=interceptors,
         explanation=explanation,
     )

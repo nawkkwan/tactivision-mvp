@@ -113,6 +113,37 @@ def test_space_target_supports_chip_pass() -> None:
     assert result.pass_distance > 0
 
 
+def test_space_target_selects_fastest_teammate_as_receiver() -> None:
+    source = request_with(55).model_dump()
+    source["players"].append(
+        {"id": "p5", "team_id": "team_a", "position": {"x": 52, "y": 30}}
+    )
+    source["target"] = {"type": "space", "position": {"x": 55, "y": 30}}
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.receiver_id == "p5"
+    assert result.receiver_arrival_time is not None
+    assert result.receiver_ball_margin is not None
+    assert result.receiver_arrival_time < result.ball_time
+
+
+def test_nearby_teammate_reduces_defender_interception_advantage() -> None:
+    without_support = request_with(34).model_dump()
+    without_support["target"] = {"type": "space", "position": {"x": 40, "y": 34}}
+    baseline = simulate_pass(SimulateRequest.model_validate(without_support))
+
+    with_support = request_with(34).model_dump()
+    with_support["target"] = {"type": "space", "position": {"x": 40, "y": 34}}
+    with_support["players"].append(
+        {"id": "p5", "team_id": "team_a", "position": {"x": 25, "y": 34}}
+    )
+    supported = simulate_pass(SimulateRequest.model_validate(with_support))
+
+    assert supported.risk_percent < baseline.risk_percent
+    assert supported.interceptors[0].teammate_id == "p5"
+
+
 def test_goalkeeper_has_more_chip_interception_reach() -> None:
     player_source = request_with(34).model_dump()
     player_source["pass_type"] = "chip"

@@ -49,6 +49,7 @@ export function RiskResults({ comparisons, activeId, onSelect, onClear }: RiskRe
                 <div><dt>ระดับ</dt><dd>{riskLabels[comparison.result.risk]}</dd></div>
                 <div><dt>ระยะ</dt><dd>{comparison.result.pass_distance.toFixed(1)} m</dd></div>
                 <div><dt>เวลาบอล</dt><dd>{comparison.result.ball_time.toFixed(2)} s</dd></div>
+                <div><dt>ผู้รับ</dt><dd>{comparison.result.receiver_id ?? "ไม่มี"}</dd></div>
               </dl>
               <p>{comparison.result.explanation}</p>
             </button>

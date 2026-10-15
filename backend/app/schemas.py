@@ -103,6 +103,7 @@ class SimulationParameters(BaseModel):
     chip_speed: float = Field(default=14, gt=0, le=40)
     chip_apex_height: float = Field(default=3, ge=1, le=8)
     defender_speed: float = Field(default=7, gt=0, le=15)
+    attacker_speed: float = Field(default=7, gt=0, le=15)
     reaction_time: float = Field(default=0.3, ge=0, le=3)
     reach_radius: float = Field(default=1, ge=0, le=3)
     sample_step: float = Field(default=0.5, gt=0.05, le=5)
@@ -122,6 +123,12 @@ class SimulationInterceptor(BaseModel):
     time_margin: float
     path_progress_ratio: float = Field(ge=0, le=1)
     ball_height: float = Field(ge=0)
+    ball_time: float = Field(ge=0)
+    defender_time: float = Field(ge=0)
+    teammate_id: str | None = None
+    teammate_time: float | None = Field(default=None, ge=0)
+    ball_time_margin: float
+    teammate_time_margin: float | None = None
 
 
 class SimulateResponse(BaseModel):
@@ -133,6 +140,9 @@ class SimulateResponse(BaseModel):
     interceptor_id: str | None
     intercept_point: Point2D | None
     minimum_margin: float | None
+    receiver_id: str | None = None
+    receiver_arrival_time: float | None = Field(default=None, ge=0)
+    receiver_ball_margin: float | None = None
     interceptors: list[SimulationInterceptor] = Field(default_factory=list)
     explanation: str
     disclaimer: str = (

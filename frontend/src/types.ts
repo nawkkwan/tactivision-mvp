@@ -53,6 +53,7 @@ export interface SimulationParameters {
   chip_speed: number;
   chip_apex_height: number;
   defender_speed: number;
+  attacker_speed: number;
   reaction_time: number;
   reach_radius: number;
   sample_step: number;
@@ -67,12 +68,21 @@ export interface SimulationResult {
   interceptor_id: string | null;
   intercept_point: Point2D | null;
   minimum_margin: number | null;
+  receiver_id: string | null;
+  receiver_arrival_time: number | null;
+  receiver_ball_margin: number | null;
   interceptors: Array<{
     player_id: string;
     intercept_point: Point2D;
     time_margin: number;
     path_progress_ratio: number;
     ball_height: number;
+    ball_time: number;
+    defender_time: number;
+    teammate_id: string | null;
+    teammate_time: number | null;
+    ball_time_margin: number;
+    teammate_time_margin: number | null;
   }>;
   explanation: string;
   disclaimer: string;
