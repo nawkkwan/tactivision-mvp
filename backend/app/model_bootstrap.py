@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import shutil
-import tempfile
 from pathlib import Path
 
 
@@ -26,36 +24,6 @@ def _verify(path: Path, expected_sha256: str | None) -> None:
             )
 
 
-def _download(source_url: str, output_dir: Path) -> Path:
-    import gdown
-
-    if "/folders/" in source_url:
-        downloaded = gdown.download_folder(
-            url=source_url,
-            output=str(output_dir),
-            quiet=False,
-            use_cookies=False,
-        )
-        candidates = [Path(item) for item in downloaded or []]
-        candidates.extend(output_dir.rglob("best.pt"))
-        for candidate in candidates:
-            if candidate.name.lower() == "best.pt" and candidate.is_file():
-                return candidate
-        raise RuntimeError("Google Drive folder does not contain best.pt")
-
-    destination = output_dir / "best.pt"
-    downloaded = gdown.download(
-        url=source_url,
-        output=str(destination),
-        quiet=False,
-        fuzzy=True,
-        use_cookies=False,
-    )
-    if not downloaded:
-        raise RuntimeError("Model download failed")
-    return Path(downloaded)
-
-
 def ensure_model() -> Path:
     target = Path(os.getenv("MODEL_PATH", "backend/models/best.pt")).resolve()
     expected_sha256 = os.getenv("MODEL_SHA256") or None
@@ -65,23 +33,7 @@ def ensure_model() -> Path:
         print(f"Model ready: {target}")
         return target
 
-    source_url = os.getenv("MODEL_SOURCE_URL")
-    if not source_url:
-        raise RuntimeError(
-            f"Model not found at {target} and MODEL_SOURCE_URL is not configured"
-        )
-
-    target.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="model-download-", dir=target.parent) as temp:
-        downloaded = _download(source_url, Path(temp))
-        _verify(downloaded, expected_sha256)
-        staged = target.with_suffix(".pt.part")
-        shutil.copy2(downloaded, staged)
-        os.replace(staged, target)
-
-    _verify(target, expected_sha256)
-    print(f"Model downloaded and verified: {target}")
-    return target
+    raise RuntimeError(f"Model not found at {target}")
 
 
 if __name__ == "__main__":
