@@ -320,7 +320,7 @@ function App() {
       };
       setComparisons((current) => [...current.slice(-2), comparison]);
       setActiveComparisonId(comparison.id);
-      setNotice(`คำนวณ ${targetLabel} แล้ว — Pass Risk: ${result.risk.toUpperCase()}`);
+      setNotice(`คำนวณ ${targetLabel} แล้ว — ความเสี่ยงถูกตัดบอล ${result.risk_percent}%`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "คำนวณ Simulation ไม่สำเร็จ");
     } finally {
@@ -585,7 +585,8 @@ function App() {
                 {activeComparison ? (
                   <div className={`active-risk risk-${activeComparison.result.risk}`}>
                     <span>LATEST RESULT</span>
-                    <strong>{activeComparison.result.risk.toUpperCase()}</strong>
+                    <strong>{activeComparison.result.risk_percent}%</strong>
+                    <p>ระดับ {activeComparison.result.risk.toUpperCase()}</p>
                     <p>{activeComparison.result.explanation}</p>
                     <details>
                       <summary>ดูรายละเอียดการคำนวณ</summary>
@@ -625,7 +626,7 @@ function App() {
 
       <footer>
         <strong>TactiVision MVP</strong>
-        <p>ผลลัพธ์เป็นการจำลองจากสมมติฐาน ไม่ใช่เปอร์เซ็นต์การจ่ายบอลสำเร็จจริง</p>
+        <p>เปอร์เซ็นต์เป็นดัชนีความเสี่ยงจากแบบจำลอง ไม่ใช่ความน่าจะเป็นจากข้อมูลการแข่งขันจริง</p>
       </footer>
     </div>
   );

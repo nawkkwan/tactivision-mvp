@@ -17,6 +17,8 @@ PITCH_LENGTH = 105.0
 PITCH_WIDTH = 68.0
 HIGH_RISK_MARGIN = 0.15
 MEDIUM_RISK_MARGIN = 0.75
+RISK_CURVE_CENTER = (HIGH_RISK_MARGIN + MEDIUM_RISK_MARGIN) / 2
+RISK_CURVE_STEEPNESS = math.log(3) / (RISK_CURVE_CENTER - HIGH_RISK_MARGIN)
 
 
 def _distance(a: Point2D, b: Point2D) -> float:
@@ -25,6 +27,14 @@ def _distance(a: Point2D, b: Point2D) -> float:
 
 def _is_on_pitch(point: Point2D) -> bool:
     return 0 <= point.x <= PITCH_LENGTH and 0 <= point.y <= PITCH_WIDTH
+
+
+def _risk_percent_from_margin(time_margin: float) -> int:
+    """Map the simulated time margin to a bounded, non-empirical risk index."""
+    score = 100 / (
+        1 + math.exp(RISK_CURVE_STEEPNESS * (time_margin - RISK_CURVE_CENTER))
+    )
+    return round(score)
 
 
 def _best_interception_attempt(
@@ -104,6 +114,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
     if not opponents:
         return SimulateResponse(
             risk="low",
+            risk_percent=0,
             pass_distance=round(pass_distance, 3),
             ball_time=round(ball_time_total, 3),
             interceptor_id=None,
@@ -128,6 +139,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
     attempts.sort(key=lambda attempt: attempt.time_margin)
     closest_attempt = attempts[0]
     minimum_margin = closest_attempt.time_margin
+    risk_percent = _risk_percent_from_margin(minimum_margin)
     interceptors = [
         attempt for attempt in attempts if attempt.time_margin <= MEDIUM_RISK_MARGIN
     ]
@@ -146,11 +158,12 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
     intercept_point = closest_attempt.intercept_point if risk != "low" else None
     subject = f"ผู้เล่น {closest_attempt.player_id}" if risk != "low" else "ผู้เล่นฝ่ายตรงข้ามที่ใกล้ที่สุด"
     explanation = (
-        f"Pass Risk: {risk.title()} — {subject} {detail} "
+        f"ดัชนีความเสี่ยงถูกตัดบอล {risk_percent}% ({risk.title()}) — {subject} {detail} "
         f"ภายใต้สมมติฐานที่กำหนด"
     )
     return SimulateResponse(
         risk=risk,
+        risk_percent=risk_percent,
         pass_distance=round(pass_distance, 3),
         ball_time=round(ball_time_total, 3),
         interceptor_id=interceptor_id,

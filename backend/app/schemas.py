@@ -122,6 +122,7 @@ class SimulationInterceptor(BaseModel):
 
 class SimulateResponse(BaseModel):
     risk: Literal["low", "medium", "high"]
+    risk_percent: int = Field(ge=0, le=100)
     pass_distance: float
     ball_time: float
     interceptor_id: str | None
@@ -129,5 +130,8 @@ class SimulateResponse(BaseModel):
     minimum_margin: float | None
     interceptors: list[SimulationInterceptor] = Field(default_factory=list)
     explanation: str
-    disclaimer: str = "ผลนี้เป็นการจำลองจากสมมติฐาน ไม่ใช่เปอร์เซ็นต์การจ่ายบอลสำเร็จจริง"
+    disclaimer: str = (
+        "เปอร์เซ็นต์นี้เป็นดัชนีความเสี่ยงจากแบบจำลองตามสมมติฐาน "
+        "ไม่ใช่ความน่าจะเป็นที่วัดจากข้อมูลการแข่งขันจริง"
+    )
 

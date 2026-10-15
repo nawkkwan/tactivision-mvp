@@ -56,6 +56,7 @@ export interface SimulationParameters {
 
 export interface SimulationResult {
   risk: "low" | "medium" | "high";
+  risk_percent: number;
   pass_distance: number;
   ball_time: number;
   interceptor_id: string | null;

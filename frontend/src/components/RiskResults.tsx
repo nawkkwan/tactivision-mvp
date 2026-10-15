@@ -41,10 +41,11 @@ export function RiskResults({ comparisons, activeId, onSelect, onClear }: RiskRe
             >
               <div className="result-topline">
                 <span>{String.fromCharCode(65 + slot)}</span>
-                <strong>{riskLabels[comparison.result.risk]}</strong>
+                <strong>{comparison.result.risk_percent}%</strong>
               </div>
               <h3>{comparison.targetLabel}</h3>
               <dl>
+                <div><dt>ระดับ</dt><dd>{riskLabels[comparison.result.risk]}</dd></div>
                 <div><dt>ระยะ</dt><dd>{comparison.result.pass_distance.toFixed(1)} m</dd></div>
                 <div><dt>เวลาบอล</dt><dd>{comparison.result.ball_time.toFixed(2)} s</dd></div>
               </dl>

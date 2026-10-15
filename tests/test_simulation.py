@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.app.schemas import SimulateRequest
-from backend.app.services.simulation import simulate_pass
+from backend.app.services.simulation import _risk_percent_from_margin, simulate_pass
 
 
 def request_with(defender_y: float, ball_speed: float = 18) -> SimulateRequest:
@@ -29,6 +29,7 @@ def request_with(defender_y: float, ball_speed: float = 18) -> SimulateRequest:
 def test_defender_on_path_is_high_risk() -> None:
     result = simulate_pass(request_with(34))
     assert result.risk == "high"
+    assert result.risk_percent >= 75
     assert result.interceptor_id == "p3"
     assert result.pass_distance == 30
     assert result.interceptors[0].player_id == "p3"
@@ -38,6 +39,7 @@ def test_defender_on_path_is_high_risk() -> None:
 def test_distant_defender_is_low_risk() -> None:
     result = simulate_pass(request_with(60))
     assert result.risk == "low"
+    assert result.risk_percent < 25
     assert result.interceptor_id is None
     assert result.intercept_point is None
     assert result.interceptors == []
@@ -86,6 +88,13 @@ def test_fast_ball_reduces_risk() -> None:
     assert slow.minimum_margin is not None
     assert fast.minimum_margin is not None
     assert fast.minimum_margin > slow.minimum_margin
+    assert fast.risk_percent < slow.risk_percent
+
+
+def test_risk_percent_matches_existing_risk_thresholds() -> None:
+    assert _risk_percent_from_margin(0.15) == 75
+    assert _risk_percent_from_margin(0.45) == 50
+    assert _risk_percent_from_margin(0.75) == 25
 
 
 def test_unassigned_player_cannot_be_ball_carrier() -> None:
