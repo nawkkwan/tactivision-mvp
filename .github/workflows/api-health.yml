@@ -1,0 +1,26 @@
+name: Production API health
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-api-health
+  cancel-in-progress: true
+
+jobs:
+  smoke-test:
+    name: Render API smoke test
+    if: ${{ vars.RENDER_API_URL != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Check health and simulation endpoints
+        env:
+          API_BASE_URL: ${{ vars.RENDER_API_URL }}
+        run: python scripts/check_api_health.py "$API_BASE_URL"

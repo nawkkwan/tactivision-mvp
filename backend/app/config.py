@@ -16,6 +16,7 @@ class Settings:
         ).split(",")
         if origin.strip()
     )
+    cors_origin_regex: str | None = os.getenv("CORS_ORIGIN_REGEX") or None
 
 
 settings = Settings()
