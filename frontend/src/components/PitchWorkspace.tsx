@@ -88,12 +88,12 @@ export function PitchWorkspace({
                   targetPixel.x * scale,
                   targetPixel.y * scale,
                 ]}
-                stroke={passType === "chip" ? "#f8d66d" : "#62f5b3"}
-                fill={passType === "chip" ? "#f8d66d" : "#62f5b3"}
+                stroke={passType === "ground" ? "#62f5b3" : "#f8d66d"}
+                fill={passType === "ground" ? "#62f5b3" : "#f8d66d"}
                 strokeWidth={4}
                 pointerLength={12}
                 pointerWidth={12}
-                dash={passType === "chip" ? [4, 10] : [12, 7]}
+                dash={passType === "ground" ? [12, 7] : [4, 10]}
               />
             ) : null}
             {targetPixel ? (

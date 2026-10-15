@@ -53,7 +53,7 @@ export async function simulatePass(input: {
   detections: Detection[];
   carrierId: string;
   passType: PassType;
-  target: { type: "receiver" | "space"; position: Point2D; receiver_id?: string };
+  target: { type: "receiver" | "space" | "through_ball"; position: Point2D; receiver_id?: string };
   parameters: SimulationParameters;
 }): Promise<SimulationResult> {
   const players = input.detections

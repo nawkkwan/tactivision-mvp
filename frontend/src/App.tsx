@@ -20,6 +20,8 @@ const defaultParameters: SimulationParameters = {
   ball_speed: 18,
   chip_speed: 14,
   chip_apex_height: 3,
+  long_ball_speed: 15.8,
+  long_ball_apex_height: 3.8,
   defender_speed: 7,
   attacker_speed: 7,
   reaction_time: 0.3,
@@ -103,6 +105,7 @@ function App() {
   const [parameters, setParameters] = useState<SimulationParameters>(defaultParameters);
   const [passType, setPassType] = useState<PassType>("ground");
   const [targetMode, setTargetMode] = useState<TargetMode>("receiver");
+  const [runnerId, setRunnerId] = useState<string | null>(null);
 
   const activeComparison = useMemo(
     () => comparisons.find((item) => item.id === activeComparisonId) ?? comparisons.at(-1) ?? null,
@@ -128,6 +131,7 @@ function App() {
     setComparisons([]);
     setPassType("ground");
     setTargetMode("receiver");
+    setRunnerId(null);
     setActiveComparisonId(null);
     setError(null);
     setNotice(null);
@@ -235,8 +239,12 @@ function App() {
     }
 
     if (step === 5 && carrierId && analysis?.calibration.matrix) {
-      if (targetMode !== "space") {
-        setNotice("เลือกโหมด “จ่ายเข้าพื้นที่ว่าง” ก่อนคลิกบนสนาม");
+      if (targetMode === "receiver") {
+        setNotice("เลือกโหมดพื้นที่ว่างหรือแทงทะลุช่องก่อนคลิกบนสนาม");
+        return;
+      }
+      if (targetMode === "through_ball" && !runnerId) {
+        setError("เลือกเพื่อนร่วมทีมที่จะวิ่งรับบอลก่อน แล้วคลิกจุดว่างข้างหน้า");
         return;
       }
       const fieldPoint = applyHomography(point, analysis.calibration.matrix);
@@ -244,10 +252,13 @@ function App() {
         setError("จุดที่เลือกอยู่นอกขอบเขตสนามหลัง Calibration");
         return;
       }
+      const targetLabel = `${targetMode === "through_ball" ? `แทงให้ ${runnerId} ไปที่` : "พื้นที่ว่าง"} ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`;
       void runSimulation(
-        { type: "space", position: fieldPoint },
+        targetMode === "through_ball"
+          ? { type: "through_ball", receiver_id: runnerId!, position: fieldPoint }
+          : { type: "space", position: fieldPoint },
         point,
-        `พื้นที่ว่าง ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`,
+        targetLabel,
       );
     }
   }
@@ -298,6 +309,7 @@ function App() {
       return;
     }
     setCarrierId(candidate.id);
+    setRunnerId(null);
     setStep(5);
     setMaxStep(5);
     setError(null);
@@ -305,7 +317,7 @@ function App() {
   }
 
   async function runSimulation(
-    target: { type: "receiver" | "space"; position: Point2D; receiver_id?: string },
+    target: { type: "receiver" | "space" | "through_ball"; position: Point2D; receiver_id?: string },
     targetPixel: Point2D,
     targetLabel: string,
   ) {
@@ -351,7 +363,9 @@ function App() {
     }
     if (step !== 5 || !analysis || !carrierId) return;
     if (targetMode !== "receiver") {
-      setNotice("โหมดพื้นที่ว่างทำงานอยู่ — คลิกตำแหน่งว่างบนสนาม");
+      setNotice(targetMode === "through_ball"
+        ? "โหมดแทงทะลุช่องทำงานอยู่ — เลือกผู้วิ่งแล้วคลิกจุดว่างข้างหน้า"
+        : "โหมดพื้นที่ว่างทำงานอยู่ — คลิกตำแหน่งว่างบนสนาม");
       return;
     }
     if (detection.id === carrierId) {
@@ -566,20 +580,26 @@ function App() {
                     <button type="button" aria-pressed={passType === "chip"} onClick={() => setPassType("chip")}>
                       <strong>CHIP</strong><small>ลูกชิพ</small>
                     </button>
+                    <button type="button" aria-pressed={passType === "long_ball"} onClick={() => setPassType("long_ball")}>
+                      <strong>LONG</strong><small>เปิดยาว</small>
+                    </button>
                   </div>
                   <span>ประเภทเป้าหมาย</span>
                   <div className="segmented-control" role="group" aria-label="ประเภทเป้าหมาย">
-                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => setTargetMode("receiver")}>
+                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => { setTargetMode("receiver"); setRunnerId(null); }}>
                       <strong>PLAYER</strong><small>ส่งให้เพื่อน</small>
                     </button>
-                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => setTargetMode("space")}>
+                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => { setTargetMode("space"); setRunnerId(null); }}>
                       <strong>SPACE</strong><small>จ่ายเข้าที่ว่าง</small>
+                    </button>
+                    <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => { setTargetMode("through_ball"); setRunnerId(null); }}>
+                      <strong>THROUGH</strong><small>แทงทะลุช่อง</small>
                     </button>
                   </div>
                 </div>
-                {targetMode === "receiver" ? (
+                {targetMode !== "space" ? (
                   <div className="receiver-shortcuts" aria-label="รายชื่อผู้รับบอลในทีม">
-                    <span>เลือกผู้รับในทีม</span>
+                    <span>{targetMode === "through_ball" ? "เลือกเพื่อนที่จะวิ่งรับบอล" : "เลือกผู้รับในทีม"}</span>
                     <div>
                       {analysis.detections
                         .filter((item) => {
@@ -592,13 +612,21 @@ function App() {
                           );
                         })
                         .map((receiver) => (
-                          <button type="button" key={receiver.id} onClick={() => handleDetectionClick(receiver)}>
+                          <button
+                            type="button"
+                            key={receiver.id}
+                            aria-pressed={targetMode === "through_ball" ? runnerId === receiver.id : undefined}
+                            onClick={() => targetMode === "through_ball" ? setRunnerId(receiver.id) : handleDetectionClick(receiver)}
+                          >
                             {receiver.id}
                           </button>
                         ))}
                     </div>
                   </div>
                 ) : <p className="space-hint">คลิกพื้นที่ว่างบนภาพเพื่อกำหนดจุดตกของบอล</p>}
+                {targetMode === "through_ball" ? (
+                  <p className="space-hint">เลือกจุดข้างหน้าผู้วิ่งบนภาพ ระบบสมมติว่าผู้เล่นวิ่งตรงไปยังจุดนี้ ไม่ได้เดาทิศทางจากภาพนิ่ง</p>
+                ) : null}
                 <details className="advanced-panel">
                   <summary>Advanced Settings</summary>
                   <div className="field-grid">
@@ -606,6 +634,8 @@ function App() {
                       ["ball_speed", "Ball speed", "m/s", 1, 60, 0.5],
                       ["chip_speed", "Chip speed", "m/s", 1, 40, 0.5],
                       ["chip_apex_height", "Chip apex", "m", 1, 8, 0.25],
+                      ["long_ball_speed", "Long ball speed*", "m/s", 1, 40, 0.5],
+                      ["long_ball_apex_height", "Long ball apex*", "m", 1, 10, 0.25],
                       ["defender_speed", "Defender speed", "m/s", 1, 15, 0.5],
                       ["attacker_speed", "Attacker speed", "m/s", 1, 15, 0.5],
                       ["reaction_time", "Reaction time", "s", 0, 3, 0.1],
@@ -625,6 +655,7 @@ function App() {
                     ))}
                   </div>
                   <button className="text-button" type="button" onClick={() => setParameters(defaultParameters)}>คืนค่าเริ่มต้น</button>
+                  <small className="model-note">* ค่าเปิดยาวเป็นค่าทดลองจากงานศึกษาหนึ่งชุด ไม่ใช่ค่ามาตรฐานสากล</small>
                 </details>
                 {activeComparison ? (
                   <div className={`active-risk risk-${activeComparison.result.risk}`}>
