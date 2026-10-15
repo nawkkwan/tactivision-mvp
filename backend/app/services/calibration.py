@@ -28,6 +28,71 @@ def _with_field_positions(detections: list[Detection], matrix: np.ndarray) -> li
     return updated
 
 
+def _field_markings() -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    """A lightweight FIFA-pitch line template used only to validate auto calibration."""
+    markings: list[tuple[tuple[float, float], tuple[float, float]]] = [
+        ((0, 0), (105, 0)),
+        ((105, 0), (105, 68)),
+        ((105, 68), (0, 68)),
+        ((0, 68), (0, 0)),
+        ((52.5, 0), (52.5, 68)),
+        ((0, 13.84), (16.5, 13.84)),
+        ((16.5, 13.84), (16.5, 54.16)),
+        ((16.5, 54.16), (0, 54.16)),
+        ((105, 13.84), (88.5, 13.84)),
+        ((88.5, 13.84), (88.5, 54.16)),
+        ((88.5, 54.16), (105, 54.16)),
+    ]
+    circle = [
+        (52.5 + 9.15 * math.cos(index * math.tau / 48),
+         34 + 9.15 * math.sin(index * math.tau / 48))
+        for index in range(49)
+    ]
+    markings.extend((circle[index], circle[index + 1]) for index in range(48))
+    return markings
+
+
+def _marking_support(
+    white_mask: np.ndarray, field_to_image: np.ndarray
+) -> tuple[float, float]:
+    """Return observed-line support and the fraction of template samples in-frame."""
+    height, width = white_mask.shape
+    distance = cv2.distanceTransform(
+        cv2.bitwise_not(white_mask), cv2.DIST_L2, 3
+    )
+    supported = 0
+    visible = 0
+    total = 0
+    for start, end in _field_markings():
+        length = math.dist(start, end)
+        count = max(2, int(length * 4))
+        field_points = np.array(
+            [
+                [
+                    start[0] + (end[0] - start[0]) * index / count,
+                    start[1] + (end[1] - start[1]) * index / count,
+                ]
+                for index in range(count + 1)
+            ],
+            dtype=np.float32,
+        ).reshape(-1, 1, 2)
+        image_points = cv2.perspectiveTransform(field_points, field_to_image).reshape(-1, 2)
+        finite = np.isfinite(image_points).all(axis=1)
+        in_frame = (
+            finite
+            & (image_points[:, 0] >= 0)
+            & (image_points[:, 0] < width)
+            & (image_points[:, 1] >= 0)
+            & (image_points[:, 1] < height)
+        )
+        total += len(image_points)
+        visible += int(in_frame.sum())
+        if in_frame.any():
+            pixels = np.rint(image_points[in_frame]).astype(int)
+            supported += int((distance[pixels[:, 1], pixels[:, 0]] <= 6).sum())
+    return supported / max(visible, 1), visible / max(total, 1)
+
+
 def calibrate_manual(payload: CalibrateRequest) -> CalibrateResponse:
     source = np.array(
         [[pair.image.x, pair.image.y] for pair in payload.correspondences], dtype=np.float64
@@ -102,7 +167,7 @@ def attempt_auto_calibration(
         status="needs_manual",
         method="auto",
         confidence=0,
-        message="Auto Calibration ยังไม่พบขอบเขตและเส้นสนามที่น่าเชื่อถือ กรุณาใช้ Manual Calibration",
+        message="Auto Calibration ยังยืนยันเส้นสนามได้ไม่พอ กรุณาเลือกจุดอ้างอิงด้วย Manual Calibration",
     )
     if not contours:
         return failure, detections
@@ -142,20 +207,44 @@ def attempt_auto_calibration(
         ],
         dtype=np.float32,
     )
+    # If the visible turf touches the frame edge, it may be a cropped portion of
+    # the pitch. Mapping that crop to a full 105 x 68 m field would be misleading.
+    edge_margin_x = max(3, int(width * 0.015))
+    edge_margin_y = max(3, int(height * 0.015))
+    if (
+        np.any(ordered[:, 0] <= edge_margin_x)
+        or np.any(ordered[:, 0] >= width - edge_margin_x)
+        or np.any(ordered[:, 1] <= edge_margin_y)
+        or np.any(ordered[:, 1] >= height - edge_margin_y)
+    ):
+        return failure.model_copy(
+            update={"message": "ภาพอาจเห็นสนามไม่ครบ จึงไม่เดาขนาดสนามเต็มให้อัตโนมัติ กรุณาเลือกจุดอ้างอิงด้วยตนเอง"}
+        ), detections
+
     field_corners = np.array([[0, 0], [105, 0], [105, 68], [0, 68]], dtype=np.float32)
     matrix = cv2.getPerspectiveTransform(ordered, field_corners)
-    confidence = min(0.86, 0.45 + green_coverage * 0.35 + min(line_count, 12) / 200)
+    if not np.isfinite(matrix).all():
+        return failure, detections
 
-    if confidence < 0.7:
-        return failure.model_copy(update={"confidence": round(confidence, 3)}), detections
+    field_to_image = np.linalg.inv(matrix)
+    line_support, template_visibility = _marking_support(white_mask, field_to_image)
+    # This is an evidence score, not a statistically calibrated probability.
+    confidence = min(0.95, 0.2 + line_support * 0.75 + min(green_coverage, 0.8) * 0.0625)
+
+    if confidence < 0.72 or line_support < 0.55 or template_visibility < 0.8:
+        return failure.model_copy(
+            update={
+                "confidence": round(confidence, 3),
+                "message": "เส้นสนามที่ตรวจพบไม่สอดคล้องกับแบบจำลองสนามเต็มพอ ระบบจึงไม่ใช้ Auto และขอให้กำหนดจุดอ้างอิงเอง",
+            }
+        ), detections
 
     result = CalibrationResult(
         status="success",
         method="auto",
         confidence=round(confidence, 3),
-        reprojection_error=round((1 - confidence) * 5, 3),
         matrix=matrix.tolist(),
-        message="Auto Calibration แบบทดลองสำเร็จ กรุณาตรวจตำแหน่งบนสนามก่อนใช้ผล",
+        message="Auto Calibration ผ่านการตรวจแนวเส้นสนามแล้ว (คะแนนนี้เป็นคะแนนหลักฐานแบบทดลอง ไม่ใช่ความแม่นยำเชิงสถิติ) กรุณาตรวจตำแหน่งก่อนใช้ผล",
     )
     return result, _with_field_positions(detections, matrix)
 
