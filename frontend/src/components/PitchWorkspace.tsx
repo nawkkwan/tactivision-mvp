@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Arrow, Circle, Group, Image as KonvaImage, Label, Layer, Line, Rect, Stage, Tag, Text } from "react-konva";
-import type { CalibrationPair, Detection, Point2D } from "../types";
+import type { CalibrationPair, Detection, PassType, Point2D } from "../types";
 
 const CANVAS_WIDTH = 760;
 const teamColors = {
@@ -37,6 +37,7 @@ interface PitchWorkspaceProps {
   calibrationPairs: CalibrationPair[];
   targetPixel: Point2D | null;
   interceptPixel: Point2D | null;
+  passType: PassType;
   onDetectionClick: (detection: Detection) => void;
   onCanvasClick: (point: Point2D) => void;
 }
@@ -52,6 +53,7 @@ export function PitchWorkspace({
   calibrationPairs,
   targetPixel,
   interceptPixel,
+  passType,
   onDetectionClick,
   onCanvasClick,
 }: PitchWorkspaceProps) {
@@ -86,12 +88,12 @@ export function PitchWorkspace({
                   targetPixel.x * scale,
                   targetPixel.y * scale,
                 ]}
-                stroke="#62f5b3"
-                fill="#62f5b3"
+                stroke={passType === "chip" ? "#f8d66d" : "#62f5b3"}
+                fill={passType === "chip" ? "#f8d66d" : "#62f5b3"}
                 strokeWidth={4}
                 pointerLength={12}
                 pointerWidth={12}
-                dash={[12, 7]}
+                dash={passType === "chip" ? [4, 10] : [12, 7]}
               />
             ) : null}
             {targetPixel ? (

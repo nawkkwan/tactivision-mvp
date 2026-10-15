@@ -1,5 +1,7 @@
 export type TeamId = "team_a" | "team_b" | "unassigned";
 export type PlayerClass = "player" | "goalkeeper" | "referee" | "ball";
+export type PassType = "ground" | "chip";
+export type TargetMode = "receiver" | "space";
 
 export interface Point2D {
   x: number;
@@ -48,6 +50,8 @@ export interface CalibrationPair {
 
 export interface SimulationParameters {
   ball_speed: number;
+  chip_speed: number;
+  chip_apex_height: number;
   defender_speed: number;
   reaction_time: number;
   reach_radius: number;
@@ -55,6 +59,7 @@ export interface SimulationParameters {
 }
 
 export interface SimulationResult {
+  pass_type: PassType;
   risk: "low" | "medium" | "high";
   risk_percent: number;
   pass_distance: number;
@@ -67,6 +72,7 @@ export interface SimulationResult {
     intercept_point: Point2D;
     time_margin: number;
     path_progress_ratio: number;
+    ball_height: number;
   }>;
   explanation: string;
   disclaimer: string;

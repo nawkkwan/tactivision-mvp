@@ -91,6 +91,41 @@ def test_fast_ball_reduces_risk() -> None:
     assert fast.risk_percent < slow.risk_percent
 
 
+def test_chip_can_clear_a_defender_on_the_ground_path() -> None:
+    ground = simulate_pass(request_with(34))
+    source = request_with(34).model_dump()
+    source["pass_type"] = "chip"
+    chip = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert chip.pass_type == "chip"
+    assert chip.risk_percent < ground.risk_percent
+    assert chip.interceptors[0].ball_height <= 2.1
+
+
+def test_space_target_supports_chip_pass() -> None:
+    source = request_with(45).model_dump()
+    source["pass_type"] = "chip"
+    source["target"] = {"type": "space", "position": {"x": 55, "y": 25}}
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.pass_type == "chip"
+    assert result.pass_distance > 0
+
+
+def test_goalkeeper_has_more_chip_interception_reach() -> None:
+    player_source = request_with(34).model_dump()
+    player_source["pass_type"] = "chip"
+    player_result = simulate_pass(SimulateRequest.model_validate(player_source))
+
+    goalkeeper_source = request_with(34).model_dump()
+    goalkeeper_source["pass_type"] = "chip"
+    goalkeeper_source["players"][2]["class_name"] = "goalkeeper"
+    goalkeeper_result = simulate_pass(SimulateRequest.model_validate(goalkeeper_source))
+
+    assert goalkeeper_result.risk_percent >= player_result.risk_percent
+
+
 def test_risk_percent_matches_existing_risk_thresholds() -> None:
     assert _risk_percent_from_margin(0.15) == 75
     assert _risk_percent_from_margin(0.45) == 50

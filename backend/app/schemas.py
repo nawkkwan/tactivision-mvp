@@ -100,6 +100,8 @@ class SimulationTarget(BaseModel):
 
 class SimulationParameters(BaseModel):
     ball_speed: float = Field(default=18, gt=0, le=60)
+    chip_speed: float = Field(default=14, gt=0, le=40)
+    chip_apex_height: float = Field(default=3, ge=1, le=8)
     defender_speed: float = Field(default=7, gt=0, le=15)
     reaction_time: float = Field(default=0.3, ge=0, le=3)
     reach_radius: float = Field(default=1, ge=0, le=3)
@@ -109,6 +111,7 @@ class SimulationParameters(BaseModel):
 class SimulateRequest(BaseModel):
     players: list[SimulationPlayer] = Field(min_length=2)
     ball_carrier_id: str
+    pass_type: Literal["ground", "chip"] = "ground"
     target: SimulationTarget
     parameters: SimulationParameters = Field(default_factory=SimulationParameters)
 
@@ -118,9 +121,11 @@ class SimulationInterceptor(BaseModel):
     intercept_point: Point2D
     time_margin: float
     path_progress_ratio: float = Field(ge=0, le=1)
+    ball_height: float = Field(ge=0)
 
 
 class SimulateResponse(BaseModel):
+    pass_type: Literal["ground", "chip"]
     risk: Literal["low", "medium", "high"]
     risk_percent: int = Field(ge=0, le=100)
     pass_distance: float

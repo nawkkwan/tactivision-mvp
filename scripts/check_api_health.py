@@ -36,6 +36,7 @@ def check_api(base_url: str) -> None:
                 {"id": "p3", "team_id": "team_b", "position": {"x": 25, "y": 34}},
             ],
             "ball_carrier_id": "p1",
+            "pass_type": "ground",
             "target": {
                 "type": "receiver",
                 "receiver_id": "p2",
@@ -46,7 +47,9 @@ def check_api(base_url: str) -> None:
     )
     interceptors = simulation.get("interceptors")
     if (
-        simulation.get("risk") != "high"
+        simulation.get("pass_type") != "ground"
+        or simulation.get("risk") != "high"
+        or not isinstance(simulation.get("risk_percent"), int)
         or simulation.get("interceptor_id") != "p3"
         or not isinstance(interceptors, list)
         or not interceptors

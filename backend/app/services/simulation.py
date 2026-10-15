@@ -19,6 +19,8 @@ HIGH_RISK_MARGIN = 0.15
 MEDIUM_RISK_MARGIN = 0.75
 RISK_CURVE_CENTER = (HIGH_RISK_MARGIN + MEDIUM_RISK_MARGIN) / 2
 RISK_CURVE_STEEPNESS = math.log(3) / (RISK_CURVE_CENTER - HIGH_RISK_MARGIN)
+PLAYER_INTERCEPT_HEIGHT = 2.1
+GOALKEEPER_INTERCEPT_HEIGHT = 2.8
 
 
 def _distance(a: Point2D, b: Point2D) -> float:
@@ -37,6 +39,22 @@ def _risk_percent_from_margin(time_margin: float) -> int:
     return round(score)
 
 
+def _ball_height(payload: SimulateRequest, path_progress_ratio: float) -> float:
+    if payload.pass_type == "ground":
+        return 0.0
+    return 4 * payload.parameters.chip_apex_height * path_progress_ratio * (
+        1 - path_progress_ratio
+    )
+
+
+def _intercept_height(defender: SimulationPlayer) -> float:
+    return (
+        GOALKEEPER_INTERCEPT_HEIGHT
+        if defender.class_name == "goalkeeper"
+        else PLAYER_INTERCEPT_HEIGHT
+    )
+
+
 def _best_interception_attempt(
     carrier_position: Point2D,
     target: Point2D,
@@ -46,9 +64,13 @@ def _best_interception_attempt(
     sample_count: int,
 ) -> SimulationInterceptor:
     parameters = payload.parameters
+    ball_speed = (
+        parameters.chip_speed if payload.pass_type == "chip" else parameters.ball_speed
+    )
     minimum_margin = math.inf
     best_point = target
     best_ratio = 1.0
+    best_height = 0.0
 
     for index in range(1, sample_count + 1):
         ratio = index / sample_count
@@ -56,7 +78,10 @@ def _best_interception_attempt(
             x=carrier_position.x + (target.x - carrier_position.x) * ratio,
             y=carrier_position.y + (target.y - carrier_position.y) * ratio,
         )
-        ball_time = (pass_distance * ratio) / parameters.ball_speed
+        ball_height = _ball_height(payload, ratio)
+        if ball_height > _intercept_height(defender):
+            continue
+        ball_time = (pass_distance * ratio) / ball_speed
         run_distance = max(0.0, _distance(defender.position, point) - parameters.reach_radius)
         defender_time = parameters.reaction_time + run_distance / parameters.defender_speed
         margin = defender_time - ball_time
@@ -64,12 +89,14 @@ def _best_interception_attempt(
             minimum_margin = margin
             best_point = point
             best_ratio = ratio
+            best_height = ball_height
 
     return SimulationInterceptor(
         player_id=defender.id,
         intercept_point=Point2D(x=round(best_point.x, 3), y=round(best_point.y, 3)),
         time_margin=round(minimum_margin, 3),
         path_progress_ratio=round(best_ratio, 3),
+        ball_height=round(best_height, 3),
     )
 
 
@@ -104,7 +131,8 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
         raise HTTPException(status_code=422, detail="เป้าหมายอยู่ใกล้ Ball Carrier เกินไป")
 
     parameters = payload.parameters
-    ball_time_total = pass_distance / parameters.ball_speed
+    ball_speed = parameters.chip_speed if payload.pass_type == "chip" else parameters.ball_speed
+    ball_time_total = pass_distance / ball_speed
     opponents = [
         player
         for player in payload.players
@@ -113,6 +141,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
 
     if not opponents:
         return SimulateResponse(
+            pass_type=payload.pass_type,
             risk="low",
             risk_percent=0,
             pass_distance=round(pass_distance, 3),
@@ -121,7 +150,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
             intercept_point=None,
             minimum_margin=None,
             interceptors=[],
-            explanation="Pass Risk: Low — ไม่มีผู้เล่นฝ่ายตรงข้ามที่มีพิกัดพร้อมสำหรับการคำนวณ",
+            explanation="ความเสี่ยง 0% — ไม่มีผู้เล่นฝ่ายตรงข้ามที่มีพิกัดพร้อมสำหรับการคำนวณ",
         )
 
     sample_count = max(2, min(400, math.ceil(pass_distance / parameters.sample_step)))
@@ -157,11 +186,13 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
     interceptor_id = closest_attempt.player_id if risk != "low" else None
     intercept_point = closest_attempt.intercept_point if risk != "low" else None
     subject = f"ผู้เล่น {closest_attempt.player_id}" if risk != "low" else "ผู้เล่นฝ่ายตรงข้ามที่ใกล้ที่สุด"
+    pass_label = "ลูกชิพ" if payload.pass_type == "chip" else "ลูกเรียด"
     explanation = (
-        f"ดัชนีความเสี่ยงถูกตัดบอล {risk_percent}% ({risk.title()}) — {subject} {detail} "
+        f"{pass_label}: ดัชนีความเสี่ยงถูกตัดบอล {risk_percent}% ({risk.title()}) — {subject} {detail} "
         f"ภายใต้สมมติฐานที่กำหนด"
     )
     return SimulateResponse(
+        pass_type=payload.pass_type,
         risk=risk,
         risk_percent=risk_percent,
         pass_distance=round(pass_distance, 3),

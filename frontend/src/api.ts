@@ -2,6 +2,7 @@ import type {
   CalibrationPair,
   DetectResponse,
   Detection,
+  PassType,
   Point2D,
   SimulationParameters,
   SimulationResult,
@@ -51,6 +52,7 @@ export async function calibrateImage(
 export async function simulatePass(input: {
   detections: Detection[];
   carrierId: string;
+  passType: PassType;
   target: { type: "receiver" | "space"; position: Point2D; receiver_id?: string };
   parameters: SimulationParameters;
 }): Promise<SimulationResult> {
@@ -73,6 +75,7 @@ export async function simulatePass(input: {
     body: JSON.stringify({
       players,
       ball_carrier_id: input.carrierId,
+      pass_type: input.passType,
       target: input.target,
       parameters: input.parameters,
     }),

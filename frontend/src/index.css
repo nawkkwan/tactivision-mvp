@@ -121,6 +121,14 @@ select, input[type="number"] { min-width: 0; width: 100%; padding: 7px 8px; colo
 .receiver-shortcuts > div { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
 .receiver-shortcuts button { min-width: 44px; padding: 7px 10px; color: #50d9ff; border: 1px solid rgba(80, 217, 255, .35); background: rgba(80, 217, 255, .05); font-family: Consolas, monospace; font-size: 11px; }
 .receiver-shortcuts button:hover { color: #071512; background: #50d9ff; }
+.simulation-choices { display: grid; gap: 8px; margin-bottom: 16px; }
+.simulation-choices > span { color: #69877c; font-size: 9px; text-transform: uppercase; letter-spacing: .12em; }
+.segmented-control { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.segmented-control button { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; color: #78978c; border: 1px solid rgba(161, 213, 192, .2); background: rgba(161, 213, 192, .03); text-align: left; }
+.segmented-control button[aria-pressed="true"] { color: #071512; border-color: #62f5b3; background: #62f5b3; }
+.segmented-control strong { font-family: Consolas, monospace; font-size: 11px; letter-spacing: .08em; }
+.segmented-control small { font-size: 9px; }
+.space-hint { margin: 0 0 16px; padding: 11px 12px; color: #f8d66d !important; border: 1px dashed rgba(248, 214, 109, .35); }
 
 .advanced-panel { margin: 14px 0; border-top: 1px solid rgba(161, 213, 192, .12); border-bottom: 1px solid rgba(161, 213, 192, .12); padding: 13px 0; }
 .advanced-panel summary, .active-risk summary { color: #9dbaaf; font-size: 11px; cursor: pointer; }

@@ -10,12 +10,16 @@ import type {
   Comparison,
   DetectResponse,
   Detection,
+  PassType,
   Point2D,
   SimulationParameters,
+  TargetMode,
 } from "./types";
 
 const defaultParameters: SimulationParameters = {
   ball_speed: 18,
+  chip_speed: 14,
+  chip_apex_height: 3,
   defender_speed: 7,
   reaction_time: 0.3,
   reach_radius: 1,
@@ -96,6 +100,8 @@ function App() {
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [activeComparisonId, setActiveComparisonId] = useState<string | null>(null);
   const [parameters, setParameters] = useState<SimulationParameters>(defaultParameters);
+  const [passType, setPassType] = useState<PassType>("ground");
+  const [targetMode, setTargetMode] = useState<TargetMode>("receiver");
 
   const activeComparison = useMemo(
     () => comparisons.find((item) => item.id === activeComparisonId) ?? comparisons.at(-1) ?? null,
@@ -119,6 +125,8 @@ function App() {
     setCandidateCarrierId(null);
     setCarrierId(null);
     setComparisons([]);
+    setPassType("ground");
+    setTargetMode("receiver");
     setActiveComparisonId(null);
     setError(null);
     setNotice(null);
@@ -226,6 +234,10 @@ function App() {
     }
 
     if (step === 5 && carrierId && analysis?.calibration.matrix) {
+      if (targetMode !== "space") {
+        setNotice("เลือกโหมด “จ่ายเข้าพื้นที่ว่าง” ก่อนคลิกบนสนาม");
+        return;
+      }
       const fieldPoint = applyHomography(point, analysis.calibration.matrix);
       if (!fieldPoint || fieldPoint.x < 0 || fieldPoint.x > 105 || fieldPoint.y < 0 || fieldPoint.y > 68) {
         setError("จุดที่เลือกอยู่นอกขอบเขตสนามหลัง Calibration");
@@ -303,6 +315,7 @@ function App() {
       const result = await simulatePass({
         detections: analysis.detections,
         carrierId,
+        passType,
         target,
         parameters,
       });
@@ -336,6 +349,10 @@ function App() {
       return;
     }
     if (step !== 5 || !analysis || !carrierId) return;
+    if (targetMode !== "receiver") {
+      setNotice("โหมดพื้นที่ว่างทำงานอยู่ — คลิกตำแหน่งว่างบนสนาม");
+      return;
+    }
     if (detection.id === carrierId) {
       setError("Ball Carrier ไม่สามารถส่งบอลให้ตัวเอง");
       return;
@@ -404,6 +421,7 @@ function App() {
               calibrationPairs={calibrationPairs}
               targetPixel={activeComparison?.targetPixel ?? null}
               interceptPixel={activeComparison?.interceptPixel ?? null}
+              passType={activeComparison?.result.pass_type ?? passType}
               onDetectionClick={handleDetectionClick}
               onCanvasClick={handleCanvasClick}
             />
@@ -536,33 +554,57 @@ function App() {
                 <span className="panel-number">05</span>
                 <span className="eyebrow">COMPARE PASS OPTIONS</span>
                 <h2>เลือกเป้าหมาย</h2>
-                <p>คลิกเพื่อนร่วมทีมเพื่อส่งให้ผู้รับ หรือคลิกพื้นที่ว่างบนสนาม ผลใหม่จะไม่รัน Detection ซ้ำ</p>
+                <p>เลือกรูปแบบการจ่ายและประเภทเป้าหมาย แล้วคลิกผู้เล่นหรือพื้นที่บนสนาม ผลใหม่จะไม่รัน Detection ซ้ำ</p>
                 <div className="locked-carrier"><span>Ball Carrier</span><strong>{carrierId}</strong><i>LOCKED</i></div>
-                <div className="receiver-shortcuts" aria-label="รายชื่อผู้รับบอลในทีม">
-                  <span>เลือกผู้รับในทีม</span>
-                  <div>
-                    {analysis.detections
-                      .filter((item) => {
-                        const carrier = analysis.detections.find((candidate) => candidate.id === carrierId);
-                        return (
-                          item.id !== carrierId &&
-                          item.team_id === carrier?.team_id &&
-                          item.field_position !== null &&
-                          (item.class_name === "player" || item.class_name === "goalkeeper")
-                        );
-                      })
-                      .map((receiver) => (
-                        <button type="button" key={receiver.id} onClick={() => handleDetectionClick(receiver)}>
-                          {receiver.id}
-                        </button>
-                      ))}
+                <div className="simulation-choices">
+                  <span>รูปแบบการจ่าย</span>
+                  <div className="segmented-control" role="group" aria-label="รูปแบบการจ่ายบอล">
+                    <button type="button" aria-pressed={passType === "ground"} onClick={() => setPassType("ground")}>
+                      <strong>GROUND</strong><small>ลูกเรียด</small>
+                    </button>
+                    <button type="button" aria-pressed={passType === "chip"} onClick={() => setPassType("chip")}>
+                      <strong>CHIP</strong><small>ลูกชิพ</small>
+                    </button>
+                  </div>
+                  <span>ประเภทเป้าหมาย</span>
+                  <div className="segmented-control" role="group" aria-label="ประเภทเป้าหมาย">
+                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => setTargetMode("receiver")}>
+                      <strong>PLAYER</strong><small>ส่งให้เพื่อน</small>
+                    </button>
+                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => setTargetMode("space")}>
+                      <strong>SPACE</strong><small>จ่ายเข้าที่ว่าง</small>
+                    </button>
                   </div>
                 </div>
+                {targetMode === "receiver" ? (
+                  <div className="receiver-shortcuts" aria-label="รายชื่อผู้รับบอลในทีม">
+                    <span>เลือกผู้รับในทีม</span>
+                    <div>
+                      {analysis.detections
+                        .filter((item) => {
+                          const carrier = analysis.detections.find((candidate) => candidate.id === carrierId);
+                          return (
+                            item.id !== carrierId &&
+                            item.team_id === carrier?.team_id &&
+                            item.field_position !== null &&
+                            (item.class_name === "player" || item.class_name === "goalkeeper")
+                          );
+                        })
+                        .map((receiver) => (
+                          <button type="button" key={receiver.id} onClick={() => handleDetectionClick(receiver)}>
+                            {receiver.id}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                ) : <p className="space-hint">คลิกพื้นที่ว่างบนภาพเพื่อกำหนดจุดตกของบอล</p>}
                 <details className="advanced-panel">
                   <summary>Advanced Settings</summary>
                   <div className="field-grid">
                     {([
                       ["ball_speed", "Ball speed", "m/s", 1, 60, 0.5],
+                      ["chip_speed", "Chip speed", "m/s", 1, 40, 0.5],
+                      ["chip_apex_height", "Chip apex", "m", 1, 8, 0.25],
                       ["defender_speed", "Defender speed", "m/s", 1, 15, 0.5],
                       ["reaction_time", "Reaction time", "s", 0, 3, 0.1],
                       ["reach_radius", "Reach radius", "m", 0, 3, 0.1],
@@ -592,6 +634,7 @@ function App() {
                       <summary>ดูรายละเอียดการคำนวณ</summary>
                       <dl>
                         <div><dt>ระยะจ่าย</dt><dd>{activeComparison.result.pass_distance.toFixed(2)} m</dd></div>
+                        <div><dt>รูปแบบ</dt><dd>{activeComparison.result.pass_type.toUpperCase()}</dd></div>
                         <div><dt>เวลาบอล</dt><dd>{activeComparison.result.ball_time.toFixed(3)} s</dd></div>
                         <div><dt>ผู้สกัด</dt><dd>{activeComparison.result.interceptor_id ?? "ไม่มี"}</dd></div>
                         <div><dt>Time margin</dt><dd>{activeComparison.result.minimum_margin?.toFixed(3) ?? "—"} s</dd></div>
