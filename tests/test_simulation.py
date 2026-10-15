@@ -113,6 +113,33 @@ def test_space_target_supports_chip_pass() -> None:
     assert result.pass_distance > 0
 
 
+def test_long_ball_uses_its_own_speed_profile() -> None:
+    source = request_with(60).model_dump()
+    source["pass_type"] = "long_ball"
+    source["parameters"]["long_ball_speed"] = 15.0
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.pass_type == "long_ball"
+    assert result.ball_time == 2.0
+
+
+def test_through_ball_uses_selected_runner_and_user_lead_point() -> None:
+    source = request_with(60).model_dump()
+    source["target"] = {
+        "type": "through_ball",
+        "receiver_id": "p2",
+        "position": {"x": 55, "y": 34},
+    }
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.receiver_id == "p2"
+    assert result.pass_distance == 45
+    assert result.receiver_arrival_time is not None
+    assert "แทงทะลุช่อง" in result.explanation
+
+
 def test_space_target_selects_fastest_teammate_as_receiver() -> None:
     source = request_with(55).model_dump()
     source["players"].append(
