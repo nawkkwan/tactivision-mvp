@@ -113,6 +113,13 @@ class SimulateRequest(BaseModel):
     parameters: SimulationParameters = Field(default_factory=SimulationParameters)
 
 
+class SimulationInterceptor(BaseModel):
+    player_id: str
+    intercept_point: Point2D
+    time_margin: float
+    path_progress_ratio: float = Field(ge=0, le=1)
+
+
 class SimulateResponse(BaseModel):
     risk: Literal["low", "medium", "high"]
     pass_distance: float
@@ -120,6 +127,7 @@ class SimulateResponse(BaseModel):
     interceptor_id: str | None
     intercept_point: Point2D | None
     minimum_margin: float | None
+    interceptors: list[SimulationInterceptor] = Field(default_factory=list)
     explanation: str
     disclaimer: str = "ผลนี้เป็นการจำลองจากสมมติฐาน ไม่ใช่เปอร์เซ็นต์การจ่ายบอลสำเร็จจริง"
 
