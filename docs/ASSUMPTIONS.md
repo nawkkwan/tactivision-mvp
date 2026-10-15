@@ -20,3 +20,5 @@
 
 ข้อมูลความเร็วจากงานวิจัยและชุดค่าที่เสนอสำหรับการสอบเทียบในอนาคตอยู่ที่ [PASS_SPEED_RESEARCH.md](PASS_SPEED_RESEARCH.md) ค่าดังกล่าวยังไม่ถูกนำมาเปลี่ยนผล Simulation จนกว่าจะเชื่อมโมเดลจริงและแยกนิยามความเร็วเฉลี่ยออกจากความเร็วหลังเตะได้
 
+ภาพรวมหลักฐานของรูปแบบพาส การตัดบอล และ Automatic Calibration อยู่ที่ [RESEARCH_FOUNDATIONS.md](RESEARCH_FOUNDATIONS.md)
+
