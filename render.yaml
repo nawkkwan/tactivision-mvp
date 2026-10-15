@@ -10,6 +10,12 @@ services:
     envVars:
       - key: MAX_UPLOAD_BYTES
         value: "10485760"
+      - key: MODEL_PATH
+        value: /app/backend/models/best.pt
+      - key: MODEL_SOURCE_URL
+        value: https://drive.google.com/drive/folders/1kcQ2iX54u2-L1bbyucHKRryzd1ASyl9y?usp=sharing
+      - key: MODEL_SHA256
+        value: DA6A85A5230E4ACFDB4BB10A82B6BB148EADFCF51F7F4AE8787E40CB25E5F47F
       - key: CORS_ORIGINS
         sync: false
       - key: CORS_ORIGIN_REGEX

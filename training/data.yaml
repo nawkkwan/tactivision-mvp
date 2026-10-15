@@ -1,0 +1,9 @@
+train: train/images
+val: valid/images
+nc: 4
+names:
+- ball
+- goalkeeper
+- player
+- referee
+path: /content/tactivision_runs/20261015_164112_523746/dataset
