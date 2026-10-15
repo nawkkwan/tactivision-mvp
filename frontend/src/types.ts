@@ -1,7 +1,7 @@
 export type TeamId = "team_a" | "team_b" | "unassigned";
 export type PlayerClass = "player" | "goalkeeper" | "referee" | "ball";
-export type PassType = "ground" | "chip";
-export type TargetMode = "receiver" | "space";
+export type PassType = "ground" | "chip" | "long_ball";
+export type TargetMode = "receiver" | "space" | "through_ball";
 
 export interface Point2D {
   x: number;
@@ -52,6 +52,8 @@ export interface SimulationParameters {
   ball_speed: number;
   chip_speed: number;
   chip_apex_height: number;
+  long_ball_speed: number;
+  long_ball_apex_height: number;
   defender_speed: number;
   attacker_speed: number;
   reaction_time: number;

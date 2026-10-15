@@ -87,14 +87,14 @@ class SimulationPlayer(BaseModel):
 
 
 class SimulationTarget(BaseModel):
-    type: Literal["receiver", "space"]
+    type: Literal["receiver", "space", "through_ball"]
     position: Point2D
     receiver_id: str | None = None
 
     @model_validator(mode="after")
-    def receiver_requires_id(self) -> "SimulationTarget":
-        if self.type == "receiver" and not self.receiver_id:
-            raise ValueError("receiver target requires receiver_id")
+    def player_target_requires_id(self) -> "SimulationTarget":
+        if self.type in {"receiver", "through_ball"} and not self.receiver_id:
+            raise ValueError("receiver and through_ball targets require receiver_id")
         return self
 
 
@@ -102,6 +102,8 @@ class SimulationParameters(BaseModel):
     ball_speed: float = Field(default=18, gt=0, le=60)
     chip_speed: float = Field(default=14, gt=0, le=40)
     chip_apex_height: float = Field(default=3, ge=1, le=8)
+    long_ball_speed: float = Field(default=15.8, gt=0, le=40)
+    long_ball_apex_height: float = Field(default=3.8, ge=1, le=10)
     defender_speed: float = Field(default=7, gt=0, le=15)
     attacker_speed: float = Field(default=7, gt=0, le=15)
     reaction_time: float = Field(default=0.3, ge=0, le=3)
@@ -112,7 +114,7 @@ class SimulationParameters(BaseModel):
 class SimulateRequest(BaseModel):
     players: list[SimulationPlayer] = Field(min_length=2)
     ball_carrier_id: str
-    pass_type: Literal["ground", "chip"] = "ground"
+    pass_type: Literal["ground", "chip", "long_ball"] = "ground"
     target: SimulationTarget
     parameters: SimulationParameters = Field(default_factory=SimulationParameters)
 
@@ -132,7 +134,7 @@ class SimulationInterceptor(BaseModel):
 
 
 class SimulateResponse(BaseModel):
-    pass_type: Literal["ground", "chip"]
+    pass_type: Literal["ground", "chip", "long_ball"]
     risk: Literal["low", "medium", "high"]
     risk_percent: int = Field(ge=0, le=100)
     pass_distance: float
@@ -147,6 +149,7 @@ class SimulateResponse(BaseModel):
     explanation: str
     disclaimer: str = (
         "เปอร์เซ็นต์นี้เป็นดัชนีความเสี่ยงจากแบบจำลองตามสมมติฐาน "
-        "ไม่ใช่ความน่าจะเป็นที่วัดจากข้อมูลการแข่งขันจริง"
+        "ไม่ใช่ความน่าจะเป็นที่วัดจากข้อมูลการแข่งขันจริง; แทงทะลุช่องสมมติว่าผู้รับวิ่งตรงไปยังจุดที่ผู้ใช้เลือก "
+        "และลูกเปิดยาวใช้ความเร็วคงที่กับวิถีพาราโบลาประมาณการ ไม่จำลองแรงต้านอากาศหรือสปิน"
     )
 

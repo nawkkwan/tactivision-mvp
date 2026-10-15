@@ -42,9 +42,22 @@ def _risk_percent_from_margin(time_margin: float) -> int:
 def _ball_height(payload: SimulateRequest, path_progress_ratio: float) -> float:
     if payload.pass_type == "ground":
         return 0.0
-    return 4 * payload.parameters.chip_apex_height * path_progress_ratio * (
+    apex_height = (
+        payload.parameters.chip_apex_height
+        if payload.pass_type == "chip"
+        else payload.parameters.long_ball_apex_height
+    )
+    return 4 * apex_height * path_progress_ratio * (
         1 - path_progress_ratio
     )
+
+
+def _ball_speed(payload: SimulateRequest) -> float:
+    if payload.pass_type == "ground":
+        return payload.parameters.ball_speed
+    if payload.pass_type == "chip":
+        return payload.parameters.chip_speed
+    return payload.parameters.long_ball_speed
 
 
 def _intercept_height(defender: SimulationPlayer) -> float:
@@ -76,9 +89,7 @@ def _best_interception_attempt(
     sample_count: int,
 ) -> SimulationInterceptor:
     parameters = payload.parameters
-    ball_speed = (
-        parameters.chip_speed if payload.pass_type == "chip" else parameters.ball_speed
-    )
+    ball_speed = _ball_speed(payload)
     minimum_margin = math.inf
     best_point = target
     best_ratio = 1.0
@@ -180,7 +191,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
 
     target = payload.target.position
     selected_receiver: SimulationPlayer | None = None
-    if payload.target.type == "receiver":
+    if payload.target.type in {"receiver", "through_ball"}:
         receiver = players_by_id.get(payload.target.receiver_id or "")
         if receiver is None:
             raise HTTPException(status_code=422, detail="ไม่พบผู้รับบอลที่เลือก")
@@ -188,9 +199,11 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
             raise HTTPException(status_code=422, detail="เลือกผู้เล่นฝ่ายตรงข้ามเป็นผู้รับบอลไม่ได้")
         if receiver.id == carrier.id:
             raise HTTPException(status_code=422, detail="Ball Carrier ไม่สามารถส่งบอลให้ตัวเอง")
-        # Use the calibrated player position as the source of truth instead of
-        # trusting a second, client-provided copy of the receiver position.
-        target = receiver.position
+        # Normal passes use the calibrated player location; through balls use
+        # the user-selected lead point and this player as the intended runner.
+        if payload.target.type == "receiver":
+            target = receiver.position
+        selected_receiver = receiver
         selected_receiver = receiver
 
     if not _is_on_pitch(target):
@@ -201,7 +214,7 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
         raise HTTPException(status_code=422, detail="เป้าหมายอยู่ใกล้ Ball Carrier เกินไป")
 
     parameters = payload.parameters
-    ball_speed = parameters.chip_speed if payload.pass_type == "chip" else parameters.ball_speed
+    ball_speed = _ball_speed(payload)
     ball_time_total = pass_distance / ball_speed
     opponents = [
         player
@@ -294,7 +307,13 @@ def simulate_pass(payload: SimulateRequest) -> SimulateResponse:
     interceptor_id = closest_attempt.player_id if risk != "low" else None
     intercept_point = closest_attempt.intercept_point if risk != "low" else None
     subject = f"ผู้เล่น {closest_attempt.player_id}" if risk != "low" else "ผู้เล่นฝ่ายตรงข้ามที่ใกล้ที่สุด"
-    pass_label = "ลูกชิพ" if payload.pass_type == "chip" else "ลูกเรียด"
+    pass_label = {
+        "ground": "ลูกเรียด",
+        "chip": "ลูกชิพ",
+        "long_ball": "ลูกเปิดยาว",
+    }[payload.pass_type]
+    if payload.target.type == "through_ball":
+        pass_label = f"แทงทะลุช่อง ({pass_label})"
     receiver_detail = (
         f" โดย {receiver.id} เป็นผู้เล่นฝ่ายเดียวกันที่ถึงจุดรับเร็วที่สุด "
         f"({receiver_arrival_time:.2f} วินาที)"
