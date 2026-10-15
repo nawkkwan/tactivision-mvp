@@ -31,11 +31,16 @@ def test_defender_on_path_is_high_risk() -> None:
     assert result.risk == "high"
     assert result.interceptor_id == "p3"
     assert result.pass_distance == 30
+    assert result.interceptors[0].player_id == "p3"
+    assert result.interceptors[0].time_margin <= 0.15
 
 
 def test_distant_defender_is_low_risk() -> None:
     result = simulate_pass(request_with(60))
     assert result.risk == "low"
+    assert result.interceptor_id is None
+    assert result.intercept_point is None
+    assert result.interceptors == []
 
 
 def test_opponent_cannot_be_receiver() -> None:
@@ -48,5 +53,48 @@ def test_opponent_cannot_be_receiver() -> None:
     payload = SimulateRequest.model_validate(source)
     with pytest.raises(HTTPException) as error:
         simulate_pass(payload)
+    assert error.value.status_code == 422
+
+
+def test_receiver_position_comes_from_calibrated_player() -> None:
+    source = request_with(60).model_dump()
+    source["target"]["position"] = {"x": 70, "y": 10}
+    payload = SimulateRequest.model_validate(source)
+
+    result = simulate_pass(payload)
+
+    assert result.pass_distance == 30
+
+
+def test_interceptors_are_sorted_by_time_margin() -> None:
+    source = request_with(34).model_dump()
+    source["players"].append(
+        {"id": "p4", "team_id": "team_b", "position": {"x": 20, "y": 35}}
+    )
+    payload = SimulateRequest.model_validate(source)
+
+    result = simulate_pass(payload)
+
+    assert [item.player_id for item in result.interceptors] == ["p3", "p4"]
+    assert result.interceptors[0].time_margin <= result.interceptors[1].time_margin
+
+
+def test_fast_ball_reduces_risk() -> None:
+    slow = simulate_pass(request_with(40, ball_speed=8))
+    fast = simulate_pass(request_with(40, ball_speed=30))
+
+    assert slow.minimum_margin is not None
+    assert fast.minimum_margin is not None
+    assert fast.minimum_margin > slow.minimum_margin
+
+
+def test_unassigned_player_cannot_be_ball_carrier() -> None:
+    source = request_with(34).model_dump()
+    source["players"][0]["team_id"] = "unassigned"
+    payload = SimulateRequest.model_validate(source)
+
+    with pytest.raises(HTTPException) as error:
+        simulate_pass(payload)
+
     assert error.value.status_code == 422
 

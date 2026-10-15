@@ -61,6 +61,12 @@ export interface SimulationResult {
   interceptor_id: string | null;
   intercept_point: Point2D | null;
   minimum_margin: number | null;
+  interceptors: Array<{
+    player_id: string;
+    intercept_point: Point2D;
+    time_margin: number;
+    path_progress_ratio: number;
+  }>;
   explanation: string;
   disclaimer: string;
 }

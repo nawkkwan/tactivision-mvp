@@ -44,7 +44,14 @@ def check_api(base_url: str) -> None:
             "parameters": {"ball_speed": 18},
         },
     )
-    if simulation.get("risk") != "high" or simulation.get("interceptor_id") != "p3":
+    interceptors = simulation.get("interceptors")
+    if (
+        simulation.get("risk") != "high"
+        or simulation.get("interceptor_id") != "p3"
+        or not isinstance(interceptors, list)
+        or not interceptors
+        or interceptors[0].get("player_id") != "p3"
+    ):
         raise RuntimeError(f"Unexpected simulation response: {simulation}")
 
 
