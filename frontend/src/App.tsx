@@ -305,6 +305,7 @@ function App() {
 
   function handleCanvasClick(point: Point2D) {
     if (step === 3 && manualMode) {
+      if (busy) return;
       if (!pendingLandmark) {
         setError("เลือกชื่อจุดอ้างอิงก่อน แล้วจึงคลิกตำแหน่งเดียวกันบนภาพ");
         return;
@@ -342,6 +343,14 @@ function App() {
         targetLabel,
       );
     }
+  }
+
+  function removeCalibrationPoints(label?: string) {
+    if (busy) return;
+    setCalibrationPairs((current) => label ? current.filter((pair) => pair.label !== label) : []);
+    setPendingLandmark((current) => !label || current?.code === label.split(":")[0] ? null : current);
+    setError(null);
+    setNotice(label ? `ลบจุด “${label}” แล้ว สามารถเลือกใหม่ได้` : "ล้างจุดอ้างอิงทั้งหมดแล้ว");
   }
 
   async function submitManualCalibration() {
@@ -630,6 +639,7 @@ function App() {
                                 top: `${(landmark.field.y / 68) * 100}%`,
                               }}
                               title={landmark.label}
+                              disabled={busy}
                               aria-label={`${landmark.code}: ${landmark.label}${completed ? " เลือกแล้ว" : ""}`}
                               aria-pressed={pending}
                               onClick={() => setPendingLandmark(landmark)}
@@ -650,7 +660,52 @@ function App() {
                         <span>× อย่าวางบนตัวผู้เล่น เงา หรือพื้นที่หญ้าใกล้เคียง</span>
                         <small>เลือกจุดที่กระจายรอบพื้นที่ภาพ ช่วยลดอาการ Marker กระโดดจาก Homography ที่ไม่เสถียร</small>
                       </div>
+                      {pendingLandmark ? (
+                        <button
+                          className="text-button"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setPendingLandmark(null);
+                            setError(null);
+                          }}
+                        >
+                          ยกเลิกการเลือกจุดนี้
+                        </button>
+                      ) : null}
                     </div>
+                    {calibrationPairs.length > 0 ? (
+                      <section className="calibration-points" aria-label="จุดอ้างอิงที่เลือกแล้ว">
+                        <div className="calibration-points-heading">
+                          <h3>จุดที่เลือก ({calibrationPairs.length})</h3>
+                          <button
+                            className="text-button danger"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => removeCalibrationPoints()}
+                          >
+                            ล้างทั้งหมด
+                          </button>
+                        </div>
+                        <ol>
+                          {calibrationPairs.map((pair) => (
+                            <li key={pair.label}>
+                              <span className="calibration-point-index">{pair.label.split(":")[0]}</span>
+                              <span>{pair.label.slice(pair.label.indexOf(":") + 1).trim()}</span>
+                              <button
+                                className="text-button danger"
+                                type="button"
+                                disabled={busy}
+                                aria-label={`ลบจุด ${pair.label}`}
+                                onClick={() => removeCalibrationPoints(pair.label)}
+                              >
+                                ลบ
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                    ) : null}
                     <div className="landmark-categories">
                       {landmarkGroups.map((group) => {
                         const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
@@ -672,6 +727,7 @@ function App() {
                                     key={landmark.label}
                                     className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
                                     aria-pressed={pendingLandmark?.label === landmark.label}
+                                    disabled={busy}
                                     onClick={() => setPendingLandmark(landmark)}
                                   >
                                     <span>{completed ? "✓" : landmark.code}</span>{landmark.label}

@@ -132,6 +132,14 @@ select, input[type="number"] { min-width: 0; width: 100%; padding: 7px 8px; colo
 .landmark-instruction.active { color: #f8d66d; border-color: #f8d66d; background: rgba(248, 214, 109, .06); }
 .calibration-example { display: grid; gap: 5px; margin: 9px 0 12px; padding: 10px; border: 1px dashed rgba(98, 245, 179, .3); background: rgba(98, 245, 179, .035); font-size: 9px; }
 .calibration-example strong { color: #c6ded5; }.calibration-example span:first-of-type { color: #62f5b3; }.calibration-example span:nth-of-type(2) { color: #ff9ba3; }.calibration-example small { color: #78978c; line-height: 1.5; }
+.calibration-points { margin: 14px 0; padding: 12px; border: 1px solid rgba(161, 213, 192, .17); background: #091814; }
+.calibration-points-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.calibration-points h3 { margin: 0; color: #c6ded5; font-size: 12px; }
+.calibration-points .text-button { flex-shrink: 0; margin-top: 0; }
+.calibration-points ol { margin: 8px 0 0; padding: 0; list-style: none; }
+.calibration-points li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid rgba(161, 213, 192, .1); color: #a4c2b7; font-size: 11px; }
+.calibration-points li > .text-button { margin-left: auto; }
+.calibration-point-index { flex-shrink: 0; display: grid; place-items: center; min-width: 28px; height: 20px; padding: 0 4px; border-radius: 10px; color: #071512; background: #f8d66d; font-family: Consolas, monospace; font-size: 10px; font-weight: 700; }
 .landmark-categories { display: grid; gap: 7px; }
 .landmark-category { border: 1px solid rgba(161, 213, 192, .14); background: rgba(9, 24, 20, .55); }
 .landmark-category summary { display: flex; justify-content: space-between; gap: 8px; padding: 10px; color: #a4c2b7; font-size: 10px; cursor: pointer; }
