@@ -19,4 +19,10 @@ uploads/
 Thumbs.db
 AGENTS.md
 sources/
+training/data/
+training/videos/*
+!training/videos/README.md
+training/runs/
+training/artifacts/
+training/.capture_deps/
 
