@@ -2,7 +2,7 @@
 
 ## `GET /health`
 
-คืนสถานะบริการ ชื่อโมเดลที่กำหนด และสถานะการโหลดโมเดลจริง โมเดลโหลดแบบ lazy เมื่อเรียก `/detect` ครั้งแรก
+คืนสถานะบริการ ชื่อโมเดลที่กำหนด สถานะการโหลดโมเดลจริง และ threshold ที่ Backend ใช้ infer จริง (`inference_confidence_threshold`, `person_confidence_threshold`, `ball_confidence_threshold` และ `inference_iou_threshold`) โมเดลโหลดแบบ lazy เมื่อเรียก `/detect` ครั้งแรก
 
 ## `POST /detect`
 
@@ -13,6 +13,7 @@
 - ขนาดและ SHA-256 fingerprint ของภาพ
 - โมเดลและโหมด `generic` หรือ `fine_tuned`
 - Detection ID, class, confidence, bounding box, จุดเท้า และ Team ID
+- Backend เรียกโมเดลเดิมด้วย `detector.confidence_threshold=0.15` แล้วกรองผลแยกคลาส: คน (`player`, `goalkeeper`, `referee`) ใช้ `person_confidence_threshold=0.50` และบอลใช้ `ball_confidence_threshold=0.15`
 - ผล Auto Calibration ซึ่งอาจเป็น `success` หรือ `needs_manual`
 - ตำแหน่งสนามของผู้เล่นเมื่อ Auto Calibration สำเร็จ
 

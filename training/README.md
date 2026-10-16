@@ -142,3 +142,16 @@ python training/evaluate_detector.py --model "training/runs/tactivision-yolo11n/
 - ลูกบอลมองไม่เห็นไม่ต้องเดาแล้ววาดกรอบ
 - ไม่ commit วิดีโอ Dataset หรือไฟล์ `.pt` ขนาดใหญ่ลง Git
 
+## แยก threshold สำหรับประเมินกับใช้งานจริง
+
+- ประเมิน mAP ด้วย `scripts/evaluate_detector.py` ซึ่งใช้ `conf=0.001` เป็นค่าเริ่มต้น เพื่อให้ Ultralytics สร้าง precision-recall curve จาก prediction ช่วงกว้าง
+- Backend เรียกโมเดลเดิมด้วย `INFERENCE_CONFIDENCE_THRESHOLD=0.15` แล้วกรองแยกคลาสด้วย `PERSON_CONFIDENCE_THRESHOLD=0.50` และ `BALL_CONFIDENCE_THRESHOLD=0.15`
+
+ค่าเหล่านี้มีคนละวัตถุประสงค์กับ threshold สำหรับประเมิน mAP ห้ามนำ threshold ใช้งานจริงไปใช้รายงาน mAP เพราะจะตัด prediction confidence ต่ำออกก่อนคำนวณและอาจทำให้ผลประเมินคลาดเคลื่อน
+
+ค่าแยกคลาสข้างต้นเป็นข้อเสนอจาก Validation เพียงหนึ่งแมตช์ จึงต้องทดสอบกับภาพจากแมตช์อื่นต่อ ส่วนโมเดลบอลแยกสามารถทดลองที่ `conf=0.50` ได้ แต่ยังไม่ใช่โมเดลหรือค่าเริ่มต้นของระบบ
+
+```powershell
+python scripts/evaluate_detector.py --model backend/models/best.pt --data training/data.yaml
+```
+
