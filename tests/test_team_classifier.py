@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from backend.app.schemas import Detection
+from backend.app.services import team_classifier
 from backend.app.services.team_classifier import classify_teams
 
 
@@ -19,7 +20,7 @@ def make_player(identifier: str, x: int) -> Detection:
     )
 
 
-def test_jersey_colors_are_split_into_two_teams() -> None:
+def test_siglip_and_color_features_split_two_teams(monkeypatch) -> None:
     image = np.zeros((260, 420, 3), dtype=np.uint8)
     image[:] = (35, 125, 45)
     detections = []
@@ -35,6 +36,11 @@ def test_jersey_colors_are_split_into_two_teams() -> None:
         cv2.rectangle(image, (x, 50), (x + 60, 125), color, -1)
         detections.append(make_player(f"p{index}", x))
 
+    monkeypatch.setattr(
+        team_classifier,
+        "_siglip_features",
+        lambda shirts: np.repeat([[1.0, 0.0], [1.0, 0.0], [0.0, 1.0], [0.0, 1.0]], 1, axis=0),
+    )
     result = classify_teams(image, detections)
     assert result[0].team_id in {"team_a", "team_b"}
     assert result[1].team_id == result[0].team_id

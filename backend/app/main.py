@@ -19,7 +19,7 @@ from .schemas import (
 from .services.calibration import attempt_auto_calibration, calibrate_manual
 from .services.detection import Detector, ModelUnavailableError
 from .services.simulation import simulate_pass
-from .services.team_classifier import classify_teams
+from .services.team_classifier import classify_teams, team_classifier_status
 
 
 app = FastAPI(
@@ -48,7 +48,7 @@ def health() -> dict[str, object]:
         "model_error": detector.load_error,
         "modules": {
             "detection": "ready",
-            "team_classification": "ready",
+            "team_classification": team_classifier_status(),
             "calibration": "ready",
             "simulation": "ready",
         },
