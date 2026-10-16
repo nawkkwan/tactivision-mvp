@@ -211,7 +211,7 @@ button.result-card:hover, .result-card.result-active { transform: translateY(-2p
 .result-topline { display: flex; justify-content: space-between; font-family: Consolas, monospace; }
 .result-topline > span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid rgba(161, 213, 192, .25); }
 .result-card h3 { margin: 18px 0 10px; font-size: 14px; }.result-card p { color: #77968a; font-size: 10px; line-height: 1.5; }
-.result-card dl { display: flex; gap: 20px; }.result-card dl div { display: flex; flex-direction: column; }.result-card dt { color: #59766c; font-size: 8px; }.result-card dd { margin: 2px 0 0; font-family: Consolas, monospace; font-size: 14px; }
+.result-card dl { display: flex; flex-wrap: wrap; gap: 12px 20px; }.result-card dl div { display: flex; flex-direction: column; }.result-card dt { color: #59766c; font-size: 8px; }.result-card dd { margin: 2px 0 0; font-family: Consolas, monospace; font-size: 14px; }
 .empty-result { display: grid; place-items: center; align-content: center; color: #456158; border-style: dashed; }
 .empty-result > span { font-family: Consolas, monospace; font-size: 24px; }.empty-result p { margin: 10px 0 0; }
 

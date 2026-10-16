@@ -61,6 +61,18 @@ export interface SimulationParameters {
   sample_step: number;
 }
 
+export interface SimulationTarget {
+  type: TargetMode;
+  position: Point2D;
+  receiver_id?: string;
+}
+
+export interface SimulationSelection {
+  target: SimulationTarget;
+  targetLabel: string;
+  targetPixel: Point2D;
+}
+
 export interface SimulationResult {
   pass_type: PassType;
   risk: "low" | "medium" | "high";
@@ -90,10 +102,9 @@ export interface SimulationResult {
   disclaimer: string;
 }
 
-export interface Comparison {
+export interface Comparison extends SimulationSelection {
   id: string;
-  targetLabel: string;
-  targetPixel: Point2D;
+  parameters: SimulationParameters;
   interceptPixel: Point2D | null;
   result: SimulationResult;
 }
