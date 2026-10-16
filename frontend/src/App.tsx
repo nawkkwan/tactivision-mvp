@@ -29,16 +29,77 @@ const defaultParameters: SimulationParameters = {
   sample_step: 0.5,
 };
 
-const landmarks = [
-  { number: 1, label: "มุมสนามซ้ายบน", field: { x: 0, y: 0 } },
-  { number: 2, label: "กึ่งกลางเส้นบน", field: { x: 52.5, y: 0 } },
-  { number: 3, label: "มุมสนามขวาบน", field: { x: 105, y: 0 } },
-  { number: 4, label: "กึ่งกลางเส้นซ้าย", field: { x: 0, y: 34 } },
-  { number: 5, label: "จุดกลางสนาม", field: { x: 52.5, y: 34 } },
-  { number: 6, label: "กึ่งกลางเส้นขวา", field: { x: 105, y: 34 } },
-  { number: 7, label: "มุมสนามซ้ายล่าง", field: { x: 0, y: 68 } },
-  { number: 8, label: "มุมสนามขวาล่าง", field: { x: 105, y: 68 } },
+const landmarkGroups = [
+  {
+    title: "เส้นขอบและเส้นแบ่งครึ่งสนาม",
+    points: [
+      { label: "มุมสนามซ้ายบน", field: { x: 0, y: 0 } },
+      { label: "เส้นบนตรงกลาง", field: { x: 52.5, y: 0 } },
+      { label: "มุมสนามขวาบน", field: { x: 105, y: 0 } },
+      { label: "เส้นแบ่งครึ่งสนามฝั่งซ้าย", field: { x: 0, y: 34 } },
+      { label: "เส้นแบ่งครึ่งสนามฝั่งขวา", field: { x: 105, y: 34 } },
+      { label: "มุมสนามซ้ายล่าง", field: { x: 0, y: 68 } },
+      { label: "เส้นล่างตรงกลาง", field: { x: 52.5, y: 68 } },
+      { label: "มุมสนามขวาล่าง", field: { x: 105, y: 68 } },
+    ],
+  },
+  {
+    title: "วงกลมกลางสนาม",
+    points: [
+      { label: "จุดกลางสนาม", field: { x: 52.5, y: 34 } },
+      { label: "วงกลมกลางสนามด้านบน", field: { x: 52.5, y: 24.85 } },
+      { label: "วงกลมกลางสนามด้านล่าง", field: { x: 52.5, y: 43.15 } },
+      { label: "วงกลมกลางสนามด้านซ้าย", field: { x: 43.35, y: 34 } },
+      { label: "วงกลมกลางสนามด้านขวา", field: { x: 61.65, y: 34 } },
+    ],
+  },
+  {
+    title: "จุดโทษ",
+    points: [
+      { label: "จุดโทษฝั่งซ้าย", field: { x: 11, y: 34 } },
+      { label: "จุดโทษฝั่งขวา", field: { x: 94, y: 34 } },
+    ],
+  },
+  {
+    title: "มุมกรอบเขตโทษ",
+    points: [
+      { label: "กรอบเขตโทษซ้ายบน ด้านเส้นประตู", field: { x: 0, y: 13.84 } },
+      { label: "กรอบเขตโทษซ้ายบน ด้านใน", field: { x: 16.5, y: 13.84 } },
+      { label: "กรอบเขตโทษซ้ายล่าง ด้านเส้นประตู", field: { x: 0, y: 54.16 } },
+      { label: "กรอบเขตโทษซ้ายล่าง ด้านใน", field: { x: 16.5, y: 54.16 } },
+      { label: "กรอบเขตโทษขวาบน ด้านใน", field: { x: 88.5, y: 13.84 } },
+      { label: "กรอบเขตโทษขวาบน ด้านเส้นประตู", field: { x: 105, y: 13.84 } },
+      { label: "กรอบเขตโทษขวาล่าง ด้านใน", field: { x: 88.5, y: 54.16 } },
+      { label: "กรอบเขตโทษขวาล่าง ด้านเส้นประตู", field: { x: 105, y: 54.16 } },
+    ],
+  },
+  {
+    title: "มุมกรอบประตู",
+    points: [
+      { label: "กรอบประตูซ้ายบน ด้านเส้นประตู", field: { x: 0, y: 24.84 } },
+      { label: "กรอบประตูซ้ายบน ด้านใน", field: { x: 5.5, y: 24.84 } },
+      { label: "กรอบประตูซ้ายล่าง ด้านเส้นประตู", field: { x: 0, y: 43.16 } },
+      { label: "กรอบประตูซ้ายล่าง ด้านใน", field: { x: 5.5, y: 43.16 } },
+      { label: "กรอบประตูขวาบน ด้านใน", field: { x: 99.5, y: 24.84 } },
+      { label: "กรอบประตูขวาบน ด้านเส้นประตู", field: { x: 105, y: 24.84 } },
+      { label: "กรอบประตูขวาล่าง ด้านใน", field: { x: 99.5, y: 43.16 } },
+      { label: "กรอบประตูขวาล่าง ด้านเส้นประตู", field: { x: 105, y: 43.16 } },
+    ],
+  },
+  {
+    title: "จุดตัดส่วนโค้งกรอบเขตโทษ",
+    points: [
+      { label: "ส่วนโค้งกรอบเขตโทษซ้ายบน", field: { x: 16.5, y: 26.69 } },
+      { label: "ส่วนโค้งกรอบเขตโทษซ้ายล่าง", field: { x: 16.5, y: 41.31 } },
+      { label: "ส่วนโค้งกรอบเขตโทษขวาบน", field: { x: 88.5, y: 26.69 } },
+      { label: "ส่วนโค้งกรอบเขตโทษขวาล่าง", field: { x: 88.5, y: 41.31 } },
+    ],
+  },
 ] as const;
+
+const landmarks = landmarkGroups
+  .flatMap((group) => group.points.map((point) => ({ ...point, group: group.title })))
+  .map((landmark, index) => ({ ...landmark, number: index + 1 }));
 
 function applyHomography(point: Point2D, matrix: number[][]): Point2D | null {
   const denominator = matrix[2][0] * point.x + matrix[2][1] * point.y + matrix[2][2];
@@ -512,11 +573,11 @@ function App() {
                   </>
                 ) : (
                   <div className="manual-calibration">
-                    <p><strong>เลือกจุดจากแผนผัง แล้วคลิกจุดเดียวกันบนภาพใหญ่</strong></p>
+                    <p><strong>ภาพไม่จำเป็นต้องเห็นทั้งสนาม</strong> เลือกจุดที่มองเห็นชัดอย่างน้อย 4 จุด กระจายกัน และไม่อยู่แนวเดียวกัน แล้วคลิกจุดเดียวกันบนภาพใหญ่</p>
                     <div className="landmark-guide" aria-label="แผนผังตำแหน่งจุดอ้างอิงบนสนาม">
                       <div className="landmark-guide-heading">
                         <span>แผนผังสนามอ้างอิง</span>
-                        <small>บน–ล่างอ้างอิงตามแผนผังนี้</small>
+                        <small>{landmarks.length} จุดอ้างอิง · เลือก 4 จุดที่เห็นในภาพ</small>
                       </div>
                       <div className="mini-pitch">
                         <span className="mini-pitch-halfway" />
@@ -551,18 +612,35 @@ function App() {
                           : "กดหมายเลขที่มองเห็นชัดในภาพ แล้วไปคลิกตำแหน่งเดียวกันบนภาพใหญ่"}
                       </p>
                     </div>
-                    <div className="landmark-grid">
-                      {landmarks.map((landmark) => {
-                        const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
+                    <div className="landmark-categories">
+                      {landmarkGroups.map((group) => {
+                        const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
+                        const selectedCount = groupLandmarks.filter((landmark) =>
+                          calibrationPairs.some((pair) => pair.label === landmark.label),
+                        ).length;
                         return (
-                          <button
-                            type="button"
-                            key={landmark.label}
-                            className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
-                            onClick={() => setPendingLandmark(landmark)}
-                          >
-                            <span>{completed ? "✓" : landmark.number}</span>{landmark.label}
-                          </button>
+                          <details className="landmark-category" key={group.title} open={group.title === "วงกลมกลางสนาม"}>
+                            <summary>
+                              <span>{group.title}</span>
+                              <small>{selectedCount}/{groupLandmarks.length}</small>
+                            </summary>
+                            <div className="landmark-grid">
+                              {groupLandmarks.map((landmark) => {
+                                const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
+                                return (
+                                  <button
+                                    type="button"
+                                    key={landmark.label}
+                                    className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
+                                    aria-pressed={pendingLandmark?.label === landmark.label}
+                                    onClick={() => setPendingLandmark(landmark)}
+                                  >
+                                    <span>{completed ? "✓" : landmark.number}</span>{landmark.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </details>
                         );
                       })}
                     </div>
