@@ -55,3 +55,29 @@ RENDER_API_URL=https://<render-service>.onrender.com
 ```
 
 หากยังไม่ตั้งตัวแปรนี้ งานตรวจ API จะถูกข้าม และสามารถกด Run workflow เองได้จากหน้า Actions หลังตั้งค่าแล้ว
+
+## 4. Azure Container Apps (Production model alternative)
+
+หากโมเดล `best.pt` ใช้หน่วยความจำเกินขีดจำกัดของ Render ให้ย้ายเฉพาะ Backend ไป Azure Container Apps แบบ Consumption โดย Frontend ยังคงอยู่บน Cloudflare Pages
+
+จาก repository root รัน:
+
+```powershell
+.\scripts\deploy_azure.ps1
+```
+
+ค่าเริ่มต้นของสคริปต์คือ `1 vCPU`, RAM `2 GiB`, ขั้นต่ำ `0` replica และสูงสุด `1` replica เพื่อให้ scale-to-zero และควบคุมค่าใช้จ่าย สคริปต์จะพิมพ์ URL ของ API เมื่อ deploy เสร็จ
+
+ตรวจสอบ `https://<azure-fqdn>/health` และทดสอบ `POST /detect` ก่อนแก้ตัวแปร Cloudflare Pages:
+
+```text
+VITE_API_URL=https://<azure-fqdn>
+```
+
+หลังแก้ตัวแปร ให้ deploy Cloudflare Pages ใหม่หนึ่งครั้ง จากนั้น Render เดิมสามารถหยุดใช้งานได้เมื่อยืนยันว่า Azure ทำงานครบแล้ว
+
+Production API ปัจจุบัน:
+
+```text
+https://tactivision-api.bravesea-5e18ac68.eastasia.azurecontainerapps.io
+```
