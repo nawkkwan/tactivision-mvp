@@ -1,0 +1,13 @@
+{
+  "source_sha256": "33aad24110e390811d1551b1f552331fccf24da852cb5d788643537f6ba382d4",
+  "approvals": [
+    {
+      "filename": "frame_0071_02h20m00s_jpg.rf.89f3e8ee1f7429426972575181a98420.jpg",
+      "line": 16,
+      "class_id": 0,
+      "original_line_sha256": "87a19f4ba070447dbc2fe8a5617b4825aa092a5b06dd279e054426898c05dfd2",
+      "position_confirmed_by": "user",
+      "note": "The user explicitly confirmed the original annotated location is the ball. Preserve that location; convert only polygon bounds to an axis-aligned detection box."
+    }
+  ]
+}
