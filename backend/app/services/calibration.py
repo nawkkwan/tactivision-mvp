@@ -14,10 +14,31 @@ from ..schemas import (
 )
 
 
-def _apply_homography(point: Point2D, matrix: np.ndarray) -> Point2D:
+PITCH_LENGTH = 105.0
+PITCH_WIDTH = 68.0
+MAX_MANUAL_REPROJECTION_ERROR = 2.0
+FIELD_EDGE_TOLERANCE = 1.0
+
+
+def _apply_homography(point: Point2D, matrix: np.ndarray) -> Point2D | None:
     source = np.array([[[point.x, point.y]]], dtype=np.float64)
     transformed = cv2.perspectiveTransform(source, matrix)[0][0]
-    return Point2D(x=round(float(transformed[0]), 3), y=round(float(transformed[1]), 3))
+    x, y = float(transformed[0]), float(transformed[1])
+    if not np.isfinite([x, y]).all():
+        return None
+    if (
+        x < -FIELD_EDGE_TOLERANCE
+        or x > PITCH_LENGTH + FIELD_EDGE_TOLERANCE
+        or y < -FIELD_EDGE_TOLERANCE
+        or y > PITCH_WIDTH + FIELD_EDGE_TOLERANCE
+    ):
+        return None
+    # Small RANSAC errors near a touchline should not create markers outside the
+    # playable area. Larger errors are rejected above instead of being snapped.
+    return Point2D(
+        x=round(min(PITCH_LENGTH, max(0.0, x)), 3),
+        y=round(min(PITCH_WIDTH, max(0.0, y)), 3),
+    )
 
 
 def _with_field_positions(detections: list[Detection], matrix: np.ndarray) -> list[Detection]:
@@ -101,7 +122,38 @@ def calibrate_manual(payload: CalibrateRequest) -> CalibrateResponse:
         [[pair.field.x, pair.field.y] for pair in payload.correspondences], dtype=np.float64
     )
 
-    if cv2.contourArea(cv2.convexHull(source.astype(np.float32))) < 25:
+    if (
+        np.any(source[:, 0] < 0)
+        or np.any(source[:, 0] > payload.image_width)
+        or np.any(source[:, 1] < 0)
+        or np.any(source[:, 1] > payload.image_height)
+    ):
+        result = CalibrationResult(
+            status="needs_manual",
+            method="manual",
+            confidence=0,
+            message="มีจุดอ้างอิงอยู่นอกขอบภาพ กรุณาเลือกจุดบนภาพใหม่",
+        )
+        return CalibrateResponse(calibration=result, detections=payload.detections)
+
+    if (
+        np.any(destination[:, 0] < 0)
+        or np.any(destination[:, 0] > PITCH_LENGTH)
+        or np.any(destination[:, 1] < 0)
+        or np.any(destination[:, 1] > PITCH_WIDTH)
+    ):
+        result = CalibrationResult(
+            status="needs_manual",
+            method="manual",
+            confidence=0,
+            message="พิกัดอ้างอิงต้องอยู่ในสนาม 105 × 68 เมตร",
+        )
+        return CalibrateResponse(calibration=result, detections=payload.detections)
+
+    source_area = cv2.contourArea(cv2.convexHull(source.astype(np.float32)))
+    destination_area = cv2.contourArea(cv2.convexHull(destination.astype(np.float32)))
+    minimum_source_area = payload.image_width * payload.image_height * 0.0005
+    if source_area < minimum_source_area or destination_area < 5:
         result = CalibrationResult(
             status="needs_manual",
             method="manual",
@@ -120,19 +172,32 @@ def calibrate_manual(payload: CalibrateRequest) -> CalibrateResponse:
         )
         return CalibrateResponse(calibration=result, detections=payload.detections)
 
+    matrix_scale = matrix[2, 2]
+    if abs(matrix_scale) < 1e-12:
+        result = CalibrationResult(
+            status="needs_manual",
+            method="manual",
+            confidence=0,
+            message="Homography ไม่เสถียร กรุณาเลือกจุดที่กระจายรอบภาพมากขึ้น",
+        )
+        return CalibrateResponse(calibration=result, detections=payload.detections)
+    matrix = matrix / matrix_scale
     projected = cv2.perspectiveTransform(source.reshape(-1, 1, 2), matrix).reshape(-1, 2)
     errors = np.linalg.norm(projected - destination, axis=1)
     rmse = float(math.sqrt(float(np.mean(np.square(errors)))))
     inlier_ratio = float(inlier_mask.mean())
     confidence = max(0.0, min(1.0, inlier_ratio * math.exp(-rmse / 3.0)))
 
-    if not np.isfinite(matrix).all() or rmse > 4.0:
+    if not np.isfinite(matrix).all() or rmse > MAX_MANUAL_REPROJECTION_ERROR:
         result = CalibrationResult(
             status="needs_manual",
             method="manual",
             confidence=round(confidence, 3),
             reprojection_error=round(rmse, 3),
-            message="ความคลาดเคลื่อนของจุดอ้างอิงสูงเกินไป กรุณาเลือกจุดใหม่",
+            message=(
+                f"Reprojection Error {rmse:.2f} เมตร สูงเกินเกณฑ์ "
+                f"{MAX_MANUAL_REPROJECTION_ERROR:.1f} เมตร กรุณาเลือกจุดที่กระจายและตรงเส้นจริงใหม่"
+            ),
         )
         return CalibrateResponse(calibration=result, detections=payload.detections)
 
