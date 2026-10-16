@@ -9,6 +9,97 @@
 
 ยังไม่ต้องแยก Team A/Team B เพราะเป็นงานของคนที่ 2
 
+## เริ่ม Fine-tune รอบสองบน Colab
+
+ใช้สองไฟล์นี้:
+
+1. `finetune_round2.ipynb` — เปิดผ่าน Colab → File → Upload notebook
+2. `training/data/prepared/football-v3-training-ready.zip` — อัปโหลดเมื่อ Notebook ถามหา Dataset
+
+เลือก Runtime → Change runtime type → T4 GPU แล้ว Run all จากบนลงล่าง
+**ใช้ ZIP ชื่อ training-ready เท่านั้น** ไม่ใช่ ZIP ดิบจาก Roboflow หรือ `football-v3-ready.zip`
+ZIP training-ready มี Train 141 / Valid 71 และ `initial_model.pt` ซึ่งตรงกับ `best.pt` รอบแรกตาม SHA-256
+ไม่มีภาพ/Label Test และไม่ต้องอัปโหลดโมเดลแยกหรือใช้ Roboflow API key
+
+Notebook ตรึง Ultralytics 8.4.177, ฝึกต่อจากน้ำหนักรอบแรก (ไม่ resume optimizer)
+สูงสุด 40 epochs, patience 10, AdamW, lr0=0.0001, batch 1, imgsz 1280 และ seed 42
+เป็นค่าเริ่มต้นทดลอง ไม่ได้อ้างว่าเป็นค่าที่เหมาะที่สุด
+ถ้า GPU หน่วยความจำไม่พอ ให้เริ่มรอบใหม่จาก Setup และลด IMGSZ เป็น 960
+ต้องใช้ขนาดเดียวกันทั้งการวัดก่อนเทรน การเทรน และการวัดหลังเทรน
+
+ท้าย Notebook มี:
+
+- Precision / Recall / mAP50 / mAP50-95 รวมและรายคลาส ก่อน–หลัง บน Valid เดียวกัน
+- ผลแยก Valid เดิม 36 / Valid ใหม่ 35 / รวม 71 ภาพ เพื่อดูการลืมข้อมูลเดิม
+- TP / FP / FN ที่ conf 0.15 / 0.30 / 0.50 จับคู่ Label แบบคลาสตรงกันและ IoU ≥ 0.50
+- ภาพครบ 71 คู่เทียบ (3 คอลัมน์ Label / ก่อน / หลัง) แสดงคน conf 0.50 และบอล 0.15 เหมือนกันทั้งสองโมเดล
+- กราฟฝึก confusion matrices, raw predictions, การตั้งค่า, checksum และข้อมูลการแบ่งชุด
+
+ดาวน์โหลด **`tactivision_round2_results.zip`** ตอนจบแล้วส่ง ZIP นี้กลับมาให้ตรวจ
+มี `best_round2.pt` ซึ่งยังไม่ควรนำไปแทนโมเดลบนเว็บจนกว่าจะตรวจผล
+คะแนนที่ใช้เลือก best.pt และแสดงท้าย Notebook เป็น Validation ไม่ใช่ผล Test อิสระ
+รอบนี้ไม่ได้ฝึกโมเดลบอลเฉพาะแยก และไม่ได้เปลี่ยนโมเดล Backend
+
+สร้าง ZIP สำหรับ Colab ซ้ำจากไฟล์ที่เตรียมไว้ได้ด้วยคำสั่งนี้ (ไม่เขียนทับ ZIP เดิม):
+
+```powershell
+.venv\Scripts\python.exe training/prepare_round2_bundle.py
+```
+
+`round2_workflow.py` เป็นตัวช่วยชุดเดียวกับที่ฝังใน Notebook มี unit tests ตรวจความตรงกัน
+ตรวจ Notebook และการโหลด Dataset บนเครื่องแล้ว ผู้ใช้รัน GPU training รอบสองใน Colab
+และส่งผลกลับมาแล้ว อ่านผลที่ตรวจยืนยันได้ที่ [ROUND2_RESULTS.md](ROUND2_RESULTS.md)
+
+ทดสอบโมเดลรอบสองกับภาพต้นฉบับ `candidate/test` ครบ 30 ภาพแล้ว:
+อ่าน [CANDIDATE_TEST_ROUND2_RESULTS.md](CANDIDATE_TEST_ROUND2_RESULTS.md)
+มีภาพ Label / รอบแรก / รอบสอง ครบทุกภาพ และแยกผลออกจาก Dataset ต้นฉบับ
+ทดสอบซ้ำได้ด้วย `.venv\Scripts\python.exe -m training.test_round2_candidates`
+
+## ข้อมูลเสื้อเหลือง/ดำรอบสอง: v3
+
+ผู้ใช้ยืนยันว่า 35 ภาพใหม่ที่ Export เป็น Test ตั้งใจใช้เป็น Validation
+จัดสำเนาด้วยคำสั่งนี้ โดยคืน split เก่าจากชุดที่ใช้จริง ไม่ใช้ split เก่าในหน้า Roboflow:
+
+```powershell
+.venv\Scripts\python.exe training/prepare_hardcases_export.py --zip "C:/Users/ADMIN/Downloads/Tactivision-detection.v3-football-v3-hardcases.yolov8.zip" --output training/data/prepared/football-v3-ready --new-test-is-validation --approved-polygons training/hardcases_v3_label_review.json
+```
+
+ได้ Train 141 / Validation 71 / Test เดิม 30 ภาพ และคืน Label Train เดิมที่ลบกรอบซ้ำ 13 กรอบไว้แล้ว
+Test และ Validation เก่าคง Label เดิมทุกไบต์ ZIP ต้นฉบับไม่เปลี่ยน
+ผู้ใช้ยืนยันตำแหน่งบอลใน `frame_0071_02h20m00s_jpg.rf.89f3e8ee1f7429426972575181a98420.jpg` แล้ว
+จึงแปลง Polygon บรรทัด 16 เป็น Bounding Box ที่ครอบขอบเขตเดิมประมาณ 6×7 พิกเซล
+ไม่ย้ายไปวัตถุอื่น ไม่เปลี่ยนคลาส และคง Label อีก 15 บรรทัดไว้ทุกไบต์
+`hardcases_v3_label_review.json` บันทึกการยืนยัน พร้อม checksum ของ ZIP และบรรทัดที่อนุญาต
+สคริปต์ปฏิเสธการแปลงหาก checksum เปลี่ยน และไม่แปลง Polygon อื่นอัตโนมัติ
+ข้อมูลใน `football-v3-ready.zip` ผ่านการตรวจรูปแบบแล้ว มี `data.yaml` ที่ชี้เฉพาะ Train/Valid ไม่มี key Test
+ใช้ Notebook รอบสองข้างต้น ไม่ควรใช้ Notebook รอบแรกโดยไม่ปรับ เพราะ Notebook เดิมล็อกจำนวนภาพไว้ 37/36
+ZIP `football-v3-split-review.zip` เป็นสำเนารอตรวจก่อนการยืนยัน เก็บไว้เป็นหลักฐาน ไม่ใช่ชุดพร้อมเทรน
+ใช้โฟลเดอร์ปลายทางใหม่เมื่อรันซ้ำ
+ชื่อไฟล์ใหม่ไม่มีรหัสแมตช์ การแยกตามแมตช์จึงอาศัยการจัดกลุ่มของผู้ใช้ ไม่ได้ยืนยันอิสระจากชื่อไฟล์
+
+## เทียบโมเดลบอลเก่าและใหม่บน Validation
+
+รันจาก root ของโปรเจกต์ เมื่อมี Dataset ที่เตรียมไว้และโมเดลทั้งสองไฟล์แล้ว:
+
+```powershell
+.venv\Scripts\python.exe training/compare_ball_detectors.py
+```
+
+สคริปต์ใช้เฉพาะ Validation 36 ภาพจาก `football-v1-ready` ตรวจ checksum ภาพและโมเดล
+ไม่อ่านภาพ/Label Train หรือ Test และไม่เทรนหรือปรับค่าบน Backend
+รัน `best.pt` และโมเดลบอลแยกใน environment เดียวกัน เพื่อเทียบเฉพาะคลาสบอลอย่างยุติธรรม
+ที่ conf 0.15 / 0.30 / 0.50, imgsz 1280, NMS IoU 0.70 และเกณฑ์จับคู่ IoU ≥ 0.50
+เป็นการตรวจภาพเต็ม ไม่มี tiling; NMS 0.70 ใช้ให้ตรงกับการทดลอง conf ก่อนหน้า
+ไม่ใช่ NMS 0.55 ของ Backend จึงไม่ใช่คะแนนยืนยัน pipeline ที่ Deploy
+
+ผลอยู่ใน `training/artifacts/ball_comparison_<เวลา>/` และ ZIP ชื่อเดียวกัน:
+`ball_summary.csv`, `ball_per_image.csv`, `ball_report.json`, ผลทำนายดิบ และภาพเทียบครบ 36 ภาพต่อค่า conf
+ภาพเรียงซ้าย Label / กลางโมเดลเดิม / ขวาโมเดลบอลเฉพาะ วงกลมใช้เน้นตำแหน่งบอลเล็ก ๆ
+สีเขียวคือจับคู่ Label ได้ สีแดงคือกรอบที่จับคู่ไม่ได้ ผลขึ้นกับคุณภาพ Label และไม่ใช่ mAP
+การนับเป็นจำนวนกรอบรวมทุกภาพ ไม่ใช่จำนวนบอลไม่ซ้ำตลอดคลิป
+
+อ่านผลทดลองรอบแรกได้ที่ [BALL_COMPARISON_RESULTS.md](BALL_COMPARISON_RESULTS.md)
+
 ## เริ่มงานแบบง่าย
 
 ### หลัง Fine-tune: ทดสอบแมตช์ที่กันไว้
