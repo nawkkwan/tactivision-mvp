@@ -13,6 +13,11 @@ def test_health_reports_modules() -> None:
     data = health()
     assert data["status"] == "ok"
     assert data["modules"]["simulation"] == "ready"
+    assert data["modules"]["team_classification"]["mode"] in {
+        "lazy",
+        "siglip_ready",
+        "color_fallback",
+    }
 
 
 def test_detect_rejects_wrong_content_type() -> None:
