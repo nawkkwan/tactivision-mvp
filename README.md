@@ -1,5 +1,9 @@
 # TactiVision MVP
 
+[![CI](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/ci.yml)
+[![Backend deploy](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/backend-deploy.yml/badge.svg?branch=main)](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/backend-deploy.yml)
+[![Backend health](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/api-health.yml/badge.svg)](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/api-health.yml)
+
 TactiVision เป็นเว็บทดลองวิเคราะห์ **Pass Interception Risk** จากภาพนิ่งฟุตบอล ระบบตรวจตำแหน่งผู้เล่น แบ่งทีม แปลงพิกัดภาพเป็นพิกัดสนาม และเปรียบเทียบลูกเรียดหรือลูกชิพไปยังผู้รับหรือพื้นที่ว่างได้สูงสุด 3 ทางเลือก ผลลัพธ์แสดงดัชนีความเสี่ยง 0–100% จากสมมติฐานของแบบจำลอง ไม่ใช่ความน่าจะเป็นจากข้อมูลการแข่งขันจริง
 
 ## เริ่มใช้งานด้วย Docker
