@@ -30,14 +30,14 @@ const defaultParameters: SimulationParameters = {
 };
 
 const landmarks = [
-  { label: "มุมสนามซ้ายบน", field: { x: 0, y: 0 } },
-  { label: "กึ่งกลางเส้นบน", field: { x: 52.5, y: 0 } },
-  { label: "มุมสนามขวาบน", field: { x: 105, y: 0 } },
-  { label: "กึ่งกลางเส้นซ้าย", field: { x: 0, y: 34 } },
-  { label: "จุดกลางสนาม", field: { x: 52.5, y: 34 } },
-  { label: "กึ่งกลางเส้นขวา", field: { x: 105, y: 34 } },
-  { label: "มุมสนามซ้ายล่าง", field: { x: 0, y: 68 } },
-  { label: "มุมสนามขวาล่าง", field: { x: 105, y: 68 } },
+  { number: 1, label: "มุมสนามซ้ายบน", field: { x: 0, y: 0 } },
+  { number: 2, label: "กึ่งกลางเส้นบน", field: { x: 52.5, y: 0 } },
+  { number: 3, label: "มุมสนามขวาบน", field: { x: 105, y: 0 } },
+  { number: 4, label: "กึ่งกลางเส้นซ้าย", field: { x: 0, y: 34 } },
+  { number: 5, label: "จุดกลางสนาม", field: { x: 52.5, y: 34 } },
+  { number: 6, label: "กึ่งกลางเส้นขวา", field: { x: 105, y: 34 } },
+  { number: 7, label: "มุมสนามซ้ายล่าง", field: { x: 0, y: 68 } },
+  { number: 8, label: "มุมสนามขวาล่าง", field: { x: 105, y: 68 } },
 ] as const;
 
 function applyHomography(point: Point2D, matrix: number[][]): Point2D | null {
@@ -512,7 +512,45 @@ function App() {
                   </>
                 ) : (
                   <div className="manual-calibration">
-                    <p><strong>เลือกชื่อ Landmark แล้วคลิกจุดเดียวกันบนภาพ</strong></p>
+                    <p><strong>เลือกจุดจากแผนผัง แล้วคลิกจุดเดียวกันบนภาพใหญ่</strong></p>
+                    <div className="landmark-guide" aria-label="แผนผังตำแหน่งจุดอ้างอิงบนสนาม">
+                      <div className="landmark-guide-heading">
+                        <span>แผนผังสนามอ้างอิง</span>
+                        <small>บน–ล่างอ้างอิงตามแผนผังนี้</small>
+                      </div>
+                      <div className="mini-pitch">
+                        <span className="mini-pitch-halfway" />
+                        <span className="mini-pitch-circle" />
+                        <span className="mini-pitch-box mini-pitch-box-left" />
+                        <span className="mini-pitch-box mini-pitch-box-right" />
+                        {landmarks.map((landmark) => {
+                          const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
+                          const pending = pendingLandmark?.label === landmark.label;
+                          return (
+                            <button
+                              type="button"
+                              key={`pitch-${landmark.label}`}
+                              className={`${pending ? "pending" : ""} ${completed ? "completed" : ""}`}
+                              style={{
+                                left: `${(landmark.field.x / 105) * 100}%`,
+                                top: `${(landmark.field.y / 68) * 100}%`,
+                              }}
+                              title={landmark.label}
+                              aria-label={`จุด ${landmark.number}: ${landmark.label}${completed ? " เลือกแล้ว" : ""}`}
+                              aria-pressed={pending}
+                              onClick={() => setPendingLandmark(landmark)}
+                            >
+                              {completed ? "✓" : landmark.number}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className={`landmark-instruction ${pendingLandmark ? "active" : ""}`}>
+                        {pendingLandmark
+                          ? `เลือกจุด ${pendingLandmark.number}: ${pendingLandmark.label} แล้ว — คลิกตำแหน่งเดียวกันบนภาพใหญ่`
+                          : "กดหมายเลขที่มองเห็นชัดในภาพ แล้วไปคลิกตำแหน่งเดียวกันบนภาพใหญ่"}
+                      </p>
+                    </div>
                     <div className="landmark-grid">
                       {landmarks.map((landmark) => {
                         const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
@@ -523,7 +561,7 @@ function App() {
                             className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
                             onClick={() => setPendingLandmark(landmark)}
                           >
-                            {completed ? "✓ " : ""}{landmark.label}
+                            <span>{completed ? "✓" : landmark.number}</span>{landmark.label}
                           </button>
                         );
                       })}
