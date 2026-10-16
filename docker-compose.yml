@@ -5,6 +5,10 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       MODEL_PATH: ${MODEL_PATH:-/app/yolo11n.pt}
+      BALL_MODEL_PATH: ${BALL_MODEL_PATH:-/app/backend/models/football-ball-detection.pt}
+      DETECTION_CONFIDENCE: ${DETECTION_CONFIDENCE:-0.25}
+      BALL_CONFIDENCE: ${BALL_CONFIDENCE:-0.15}
+      DETECTION_IMGSZ: ${DETECTION_IMGSZ:-1280}
       YOLO_CONFIG_DIR: /root/.cache/ultralytics
       CORS_ORIGINS: http://localhost:4173,http://localhost:5173,http://127.0.0.1:4173,http://127.0.0.1:5173
     ports:
