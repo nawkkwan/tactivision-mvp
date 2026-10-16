@@ -137,6 +137,22 @@ export function PitchWorkspace({
                     shadowColor={selected ? "#62f5b3" : color}
                     shadowBlur={selected ? 16 : 5}
                   />
+                  {detection.class_name !== "referee" ? (
+                    <Group x={detection.foot_pixel.x * scale} y={detection.foot_pixel.y * scale}>
+                      <Circle
+                        radius={selected ? 8 : 6}
+                        fill={selected ? "#62f5b3" : color}
+                        stroke="#071512"
+                        strokeWidth={2}
+                      />
+                      <Line points={[-11, 0, 11, 0]} stroke={color} strokeWidth={1} listening={false} />
+                      <Line points={[0, -11, 0, 11]} stroke={color} strokeWidth={1} listening={false} />
+                      <Label x={9} y={5} listening={false}>
+                        <Tag fill="rgba(7, 21, 18, .9)" cornerRadius={3} />
+                        <Text text={detection.id.toUpperCase()} fill={color} fontSize={10} fontStyle="bold" padding={4} />
+                      </Label>
+                    </Group>
+                  ) : null}
                   <Label x={detection.bbox.x * scale} y={Math.max(0, detection.bbox.y * scale - 23)}>
                     <Tag fill={selected ? "#62f5b3" : color} cornerRadius={4} />
                     <Text
@@ -154,7 +170,16 @@ export function PitchWorkspace({
               ? calibrationPairs.map((pair, index) => (
                   <Group key={pair.label} x={pair.image.x * scale} y={pair.image.y * scale}>
                     <Circle radius={13} fill="#f8d66d" stroke="#071512" strokeWidth={3} />
-                    <Text text={String(index + 1)} fill="#071512" fontStyle="bold" x={-4} y={-6} />
+                    <Text
+                      text={pair.label.split(":")[0] || String(index + 1)}
+                      fill="#071512"
+                      fontSize={9}
+                      fontStyle="bold"
+                      x={-9}
+                      y={-5}
+                      width={18}
+                      align="center"
+                    />
                   </Group>
                 ))
               : null}
