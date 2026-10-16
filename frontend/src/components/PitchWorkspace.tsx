@@ -150,17 +150,14 @@ export function PitchWorkspace({
                   {detection.class_name !== "referee" ? (
                     <Group x={detection.foot_pixel.x * scale} y={detection.foot_pixel.y * scale}>
                       <Circle
-                        radius={selected ? 8 : 6}
+                        radius={selected ? 5 : 4}
                         fill={selected ? "#62f5b3" : color}
                         stroke="#071512"
-                        strokeWidth={2}
+                        strokeWidth={1}
+                        hitStrokeWidth={8}
                       />
-                      <Line points={[-11, 0, 11, 0]} stroke={color} strokeWidth={1} listening={false} />
-                      <Line points={[0, -11, 0, 11]} stroke={color} strokeWidth={1} listening={false} />
-                      <Label x={9} y={5} listening={false}>
-                        <Tag fill="rgba(7, 21, 18, .9)" cornerRadius={3} />
-                        <Text text={detection.id.toUpperCase()} fill={color} fontSize={10} fontStyle="bold" padding={4} />
-                      </Label>
+                      <Line points={[-7, 0, 7, 0]} stroke={color} strokeWidth={1} listening={false} />
+                      <Line points={[0, -7, 0, 7]} stroke={color} strokeWidth={1} listening={false} />
                     </Group>
                   ) : null}
                   <Label x={detection.bbox.x * scale} y={Math.max(0, detection.bbox.y * scale - 18)}>
