@@ -4,6 +4,9 @@ TactiVision เป็นเว็บทดลองวิเคราะห์ *
 
 ## เริ่มใช้งานด้วย Docker
 
+ดาวน์โหลดโมเดลบอลลงเครื่องก่อนตามหัวข้อ “โมเดลตรวจบอลแยก” ด้านล่าง เพราะ Compose
+mount โฟลเดอร์ `backend/models` จากเครื่องทับโฟลเดอร์ใน image
+
 ```powershell
 docker compose up --build
 ```
@@ -42,6 +45,39 @@ $env:MODEL_PATH = "backend/models/best.pt"
 ```
 
 หากไม่กำหนด ระบบใช้ `yolo11n.pt` และแมปคลาส `person` เป็น `player`, `sports ball` เป็น `ball` ชั่วคราว
+
+## โมเดลตรวจบอลแยก
+
+ระบบรองรับสองโมเดลในคำขอ `/detect` เดียว: โมเดลหลักตรวจคน ส่วนโมเดลเฉพาะตรวจบอล
+โดยใช้ weights สำเร็จรูปจาก [Roboflow Sports](https://github.com/roboflow/sports/blob/main/examples/soccer/setup.sh)
+ไม่ใช่การ Fine-tune บอลเพิ่ม และไม่เปลี่ยนไฟล์ `best.pt` ของเรา
+
+หลังติดตั้ง requirements แล้ว รันครั้งเดียว:
+
+```powershell
+python -m backend.app.download_ball_model
+$env:MODEL_PATH = "backend/models/best.pt"
+$env:BALL_MODEL_PATH = "backend/models/football-ball-detection.pt"
+$env:DETECTION_CONFIDENCE = "0.25"
+$env:BALL_CONFIDENCE = "0.15"
+$env:DETECTION_IMGSZ = "1280"
+uvicorn backend.app.main:app --reload --port 8000
+```
+
+คำสั่งดาวน์โหลดตรวจ SHA-256 ของไฟล์ และไม่เขียนทับไฟล์เดิมที่ checksum ไม่ตรง
+ไฟล์ `.pt` ไม่ถูกเก็บใน Git; Docker build ดาวน์โหลดไฟล์ที่ตรวจ checksum แล้วไว้ใน image เช่นกัน
+
+ผลคนและบอลถูกรวมเป็น JSON แบบเดิม จึงไม่ต้องเปลี่ยน API ของนทีหรือ Frontend
+เมื่อโมเดลบอลทำงานสำเร็จ จะใช้เฉพาะกรอบบอลจากโมเดลนี้ ไม่รวมกรอบบอลจากโมเดลหลักซ้ำ
+หากโมเดลบอลหายหรือทำงานผิดพลาด จะใช้ผลบอลจากโมเดลหลักแทน ตรวจแหล่งที่ใช้งานจริงได้ที่
+`GET /health` → `modules.ball_detection` (`lazy`, `ready`, `fallback`, `disabled`)
+
+ค่า conf นี้เป็นค่าเริ่มต้น ยังไม่ได้เลือกจากการประเมิน Validation ทั้งชุด
+รอบนี้ตรวจภาพเต็มที่ 1280 ไม่ใช่การตัดภาพเป็น tiles แบบตัวอย่างวิดีโอใน Sports
+จึงยังอาจพลาดบอลหรือเจอบอลหลอกหลายจุดได้ ผู้ใช้ยังต้องเลือกคนถือบอลเอง
+โมเดลทั้งสองโหลดค้างไว้และใช้ RAM เพิ่ม: ทดลองบน CPU กับภาพ Validation หนึ่งภาพ
+ใช้ประมาณ 1.5 GiB เฉพาะ detector (ยังไม่รวม SigLIP); ต้องวัด RAM ของ pipeline เต็มก่อน Deploy
+และไม่เรียกตรวจจับซ้ำเมื่อเปลี่ยนผู้รับบอล
 
 อ่านรายละเอียด API ที่ [docs/API.md](docs/API.md) และสมมติฐานการจำลองที่ [docs/ASSUMPTIONS.md](docs/ASSUMPTIONS.md)
 
