@@ -1,8 +1,8 @@
-# Deployment: Cloudflare Pages + Render
+# Deployment: Cloudflare Pages + Azure Container Apps
 
 โครงสร้างที่ใช้มี Frontend แบบ Static บน Cloudflare Pages และ Backend API บน Render
 
-## 1. Deploy Backend บน Render
+## 1. Deploy Backend บน Render (ทางเลือกสำหรับ Staging)
 
 สร้าง Blueprint จาก `render.yaml` ใน repository นี้ แล้วกำหนดค่าที่ Render ขอระหว่างสร้างบริการ:
 
@@ -46,17 +46,19 @@ Production deployment จะมาจาก `main` ส่วน branch และ
 
 ตั้ง Branch Protection ของ `main` ให้ต้องผ่าน `Backend tests` และ `Frontend build` ก่อน merge
 
-`Production API health` ตรวจ Render API ทุกชั่วโมง โดยตรวจทั้ง `/health` และ `/simulate` พร้อม retry สำหรับช่วงที่ Render Free กำลังตื่นจาก idle
+`Backend / Azure deployment` build Docker image ด้วย commit SHA, push เข้า Azure Container Registry และอัปเดต Azure Container App อัตโนมัติเมื่อไฟล์ Backend บน `main` เปลี่ยน นอกจากนี้ยังกด `Run workflow` เพื่อ deploy ด้วยตนเองได้ การยืนยันตัวตนใช้ GitHub OIDC ที่ผูกเฉพาะ branch `main` จึงไม่มี Azure client secret อายุยาวเก็บใน repository
+
+`Backend / production health` ตรวจ Azure API ทุกชั่วโมง โดยตรวจทั้ง `/health` และ `/simulate` พร้อม retry สำหรับช่วงที่ Container App กำลังตื่นจาก scale-to-zero และสามารถกด `Run workflow` เพื่อตรวจทันทีได้
 
 เพิ่ม Repository variable ที่ GitHub > Settings > Secrets and variables > Actions > Variables:
 
 ```text
-RENDER_API_URL=https://<render-service>.onrender.com
+AZURE_API_URL=https://tactivision-api.bravesea-5e18ac68.eastasia.azurecontainerapps.io
 ```
 
-หากยังไม่ตั้งตัวแปรนี้ งานตรวจ API จะถูกข้าม และสามารถกด Run workflow เองได้จากหน้า Actions หลังตั้งค่าแล้ว
+ตัวแปรนี้เป็น optional; หากไม่ตั้ง workflow จะใช้ Production API ด้านบน จึงไม่ถูกข้ามแบบ workflow รุ่นเดิม
 
-## 4. Azure Container Apps (Production model alternative)
+## 4. Azure Container Apps (Production)
 
 หากโมเดล `best.pt` ใช้หน่วยความจำเกินขีดจำกัดของ Render ให้ย้ายเฉพาะ Backend ไป Azure Container Apps แบบ Consumption โดย Frontend ยังคงอยู่บน Cloudflare Pages
 

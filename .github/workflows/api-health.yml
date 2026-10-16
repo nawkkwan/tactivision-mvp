@@ -1,4 +1,4 @@
-name: Production API health
+name: Backend / production health
 
 on:
   schedule:
@@ -14,13 +14,12 @@ concurrency:
 
 jobs:
   smoke-test:
-    name: Render API smoke test
-    if: ${{ vars.RENDER_API_URL != '' }}
+    name: Azure backend smoke test
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
       - name: Check health and simulation endpoints
         env:
-          API_BASE_URL: ${{ vars.RENDER_API_URL }}
+          API_BASE_URL: ${{ vars.AZURE_API_URL || 'https://tactivision-api.bravesea-5e18ac68.eastasia.azurecontainerapps.io' }}
         run: python scripts/check_api_health.py "$API_BASE_URL"
