@@ -35,7 +35,13 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-detector = Detector(settings.model_path)
+detector = Detector(
+    settings.model_path,
+    ball_model_path=settings.ball_model_path,
+    confidence=settings.detection_confidence,
+    ball_confidence=settings.ball_confidence,
+    imgsz=settings.detection_imgsz,
+)
 
 
 @app.get("/health")
@@ -48,6 +54,7 @@ def health() -> dict[str, object]:
         "model_error": detector.load_error,
         "modules": {
             "detection": "ready",
+            "ball_detection": detector.ball_status,
             "team_classification": team_classifier_status(),
             "calibration": "ready",
             "simulation": "ready",
