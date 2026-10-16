@@ -53,6 +53,10 @@ class ImageMetadata(BaseModel):
 class DetectorMetadata(BaseModel):
     model: str
     mode: Literal["generic", "fine_tuned"]
+    confidence_threshold: float = Field(ge=0, le=1)
+    person_confidence_threshold: float = Field(ge=0, le=1)
+    ball_confidence_threshold: float = Field(ge=0, le=1)
+    iou_threshold: float = Field(ge=0, le=1)
 
 
 class DetectResponse(BaseModel):

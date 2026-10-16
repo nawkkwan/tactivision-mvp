@@ -37,7 +37,14 @@ export interface CalibrationResult {
 
 export interface DetectResponse {
   image: { width: number; height: number; fingerprint: string };
-  detector: { model: string; mode: "generic" | "fine_tuned" };
+  detector: {
+    model: string;
+    mode: "generic" | "fine_tuned";
+    confidence_threshold: number;
+    person_confidence_threshold: number;
+    ball_confidence_threshold: number;
+    iou_threshold: number;
+  };
   detections: Detection[];
   calibration: CalibrationResult;
 }

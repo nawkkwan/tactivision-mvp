@@ -35,7 +35,13 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
-detector = Detector(settings.model_path)
+detector = Detector(
+    settings.model_path,
+    confidence_threshold=settings.inference_confidence_threshold,
+    person_confidence_threshold=settings.person_confidence_threshold,
+    ball_confidence_threshold=settings.ball_confidence_threshold,
+    iou_threshold=settings.inference_iou_threshold,
+)
 
 
 @app.get("/health")
@@ -44,6 +50,10 @@ def health() -> dict[str, object]:
         "status": "ok",
         "model": detector.metadata.model,
         "model_mode": detector.metadata.mode,
+        "inference_confidence_threshold": detector.metadata.confidence_threshold,
+        "person_confidence_threshold": detector.metadata.person_confidence_threshold,
+        "ball_confidence_threshold": detector.metadata.ball_confidence_threshold,
+        "inference_iou_threshold": detector.metadata.iou_threshold,
         "model_loaded": detector.loaded,
         "model_error": detector.load_error,
         "modules": {

@@ -25,8 +25,33 @@ class ModelUnavailableError(RuntimeError):
 
 
 class Detector:
-    def __init__(self, model_path: str) -> None:
+    def __init__(
+        self,
+        model_path: str,
+        confidence_threshold: float = 0.15,
+        person_confidence_threshold: float = 0.50,
+        ball_confidence_threshold: float = 0.15,
+        iou_threshold: float = 0.55,
+    ) -> None:
+        if not 0 <= confidence_threshold <= 1:
+            raise ValueError("confidence_threshold must be between 0 and 1")
+        if not 0 <= person_confidence_threshold <= 1:
+            raise ValueError("person_confidence_threshold must be between 0 and 1")
+        if not 0 <= ball_confidence_threshold <= 1:
+            raise ValueError("ball_confidence_threshold must be between 0 and 1")
+        if confidence_threshold > min(
+            person_confidence_threshold, ball_confidence_threshold
+        ):
+            raise ValueError(
+                "confidence_threshold must not exceed a class confidence threshold"
+            )
+        if not 0 <= iou_threshold <= 1:
+            raise ValueError("iou_threshold must be between 0 and 1")
         self.model_path = model_path
+        self.confidence_threshold = confidence_threshold
+        self.person_confidence_threshold = person_confidence_threshold
+        self.ball_confidence_threshold = ball_confidence_threshold
+        self.iou_threshold = iou_threshold
         self._model = None
         self._lock = Lock()
         self.load_error: str | None = None
@@ -37,7 +62,14 @@ class Detector:
 
     @property
     def metadata(self) -> DetectorMetadata:
-        return DetectorMetadata(model=Path(self.model_path).name, mode=self.mode)  # type: ignore[arg-type]
+        return DetectorMetadata(
+            model=Path(self.model_path).name,
+            mode=self.mode,  # type: ignore[arg-type]
+            confidence_threshold=self.confidence_threshold,
+            person_confidence_threshold=self.person_confidence_threshold,
+            ball_confidence_threshold=self.ball_confidence_threshold,
+            iou_threshold=self.iou_threshold,
+        )
 
     @property
     def loaded(self) -> bool:
@@ -66,7 +98,12 @@ class Detector:
 
     def predict(self, image: np.ndarray) -> list[Detection]:
         model = self._load()
-        results = model.predict(source=image, conf=0.25, iou=0.55, verbose=False)
+        results = model.predict(
+            source=image,
+            conf=self.confidence_threshold,
+            iou=self.iou_threshold,
+            verbose=False,
+        )
         if not results:
             return []
 
@@ -85,6 +122,13 @@ class Detector:
             raw_name = str(names[int(class_index)]).lower().strip()
             class_name = CLASS_ALIASES.get(raw_name)
             if class_name is None:
+                continue
+            class_threshold = (
+                self.ball_confidence_threshold
+                if class_name == "ball"
+                else self.person_confidence_threshold
+            )
+            if float(confidence) < class_threshold:
                 continue
             x1, y1, x2, y2 = [float(value) for value in xyxy]
             width = max(1.0, x2 - x1)
