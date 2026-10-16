@@ -91,11 +91,17 @@ main { max-width: 1440px; margin: 0 auto; padding: 0 36px 72px; }
 .text-button:hover { color: #62f5b3; border-color: #62f5b3; }
 .text-button.danger:hover { color: #ff7d87; border-color: #ff7d87; }
 
+.ball-review { margin-top: 22px; padding: 12px; border: 1px solid rgba(161, 213, 192, .17); background: #091814; }
+.ball-review h3 { margin: 0 0 6px; color: #c6ded5; font-size: 12px; }
+.ball-review > p { margin: 8px 0 0; font-size: 11px; line-height: 1.6; }
 .detection-list { max-height: 330px; margin: 22px -8px 0 0; padding-right: 8px; overflow-y: auto; }
 .detection-row { display: grid; grid-template-columns: 55px 1fr 1fr 28px; gap: 7px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(161, 213, 192, .1); }
 .detection-row > div { display: flex; flex-direction: column; }
 .detection-row strong { font-family: Consolas, monospace; color: #d9eee6; font-size: 12px; }
 .detection-row small { color: #5c7c70; font-size: 8px; }
+.ball-detection-row { grid-template-columns: 55px 1fr auto; }
+.ball-detection-row > span { color: #a4c2b7; font-size: 12px; }
+.ball-detection-row .text-button { margin-top: 0; }
 select, input[type="number"] { min-width: 0; width: 100%; padding: 7px 8px; color: #c6ded5; border: 1px solid rgba(161, 213, 192, .2); border-radius: 2px; background: #0a1815; font-size: 10px; }
 
 .calibration-card { margin: 22px 0; padding: 16px; border: 1px solid rgba(248, 214, 109, .35); background: rgba(248, 214, 109, .06); }
@@ -126,6 +132,14 @@ select, input[type="number"] { min-width: 0; width: 100%; padding: 7px 8px; colo
 .landmark-instruction.active { color: #f8d66d; border-color: #f8d66d; background: rgba(248, 214, 109, .06); }
 .calibration-example { display: grid; gap: 5px; margin: 9px 0 12px; padding: 10px; border: 1px dashed rgba(98, 245, 179, .3); background: rgba(98, 245, 179, .035); font-size: 9px; }
 .calibration-example strong { color: #c6ded5; }.calibration-example span:first-of-type { color: #62f5b3; }.calibration-example span:nth-of-type(2) { color: #ff9ba3; }.calibration-example small { color: #78978c; line-height: 1.5; }
+.calibration-points { margin: 14px 0; padding: 12px; border: 1px solid rgba(161, 213, 192, .17); background: #091814; }
+.calibration-points-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.calibration-points h3 { margin: 0; color: #c6ded5; font-size: 12px; }
+.calibration-points .text-button { flex-shrink: 0; margin-top: 0; }
+.calibration-points ol { margin: 8px 0 0; padding: 0; list-style: none; }
+.calibration-points li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid rgba(161, 213, 192, .1); color: #a4c2b7; font-size: 11px; }
+.calibration-points li > .text-button { margin-left: auto; }
+.calibration-point-index { flex-shrink: 0; display: grid; place-items: center; min-width: 28px; height: 20px; padding: 0 4px; border-radius: 10px; color: #071512; background: #f8d66d; font-family: Consolas, monospace; font-size: 10px; font-weight: 700; }
 .landmark-categories { display: grid; gap: 7px; }
 .landmark-category { border: 1px solid rgba(161, 213, 192, .14); background: rgba(9, 24, 20, .55); }
 .landmark-category summary { display: flex; justify-content: space-between; gap: 8px; padding: 10px; color: #a4c2b7; font-size: 10px; cursor: pointer; }
@@ -197,7 +211,7 @@ button.result-card:hover, .result-card.result-active { transform: translateY(-2p
 .result-topline { display: flex; justify-content: space-between; font-family: Consolas, monospace; }
 .result-topline > span { display: grid; place-items: center; width: 28px; height: 28px; border: 1px solid rgba(161, 213, 192, .25); }
 .result-card h3 { margin: 18px 0 10px; font-size: 14px; }.result-card p { color: #77968a; font-size: 10px; line-height: 1.5; }
-.result-card dl { display: flex; gap: 20px; }.result-card dl div { display: flex; flex-direction: column; }.result-card dt { color: #59766c; font-size: 8px; }.result-card dd { margin: 2px 0 0; font-family: Consolas, monospace; font-size: 14px; }
+.result-card dl { display: flex; flex-wrap: wrap; gap: 12px 20px; }.result-card dl div { display: flex; flex-direction: column; }.result-card dt { color: #59766c; font-size: 8px; }.result-card dd { margin: 2px 0 0; font-family: Consolas, monospace; font-size: 14px; }
 .empty-result { display: grid; place-items: center; align-content: center; color: #456158; border-style: dashed; }
 .empty-result > span { font-family: Consolas, monospace; font-size: 24px; }.empty-result p { margin: 10px 0 0; }
 

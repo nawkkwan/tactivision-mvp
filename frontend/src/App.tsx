@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { calibrateImage, detectImage, simulatePass } from "./api";
 import { DetectionReview } from "./components/DetectionReview";
 import { FieldMap } from "./components/FieldMap";
@@ -14,6 +14,8 @@ import type {
   PassType,
   Point2D,
   SimulationParameters,
+  SimulationSelection,
+  SimulationTarget,
   TargetMode,
 } from "./types";
 
@@ -143,7 +145,7 @@ function suggestCarrier(detections: Detection[]): string | null {
   const players = detections.filter(
     (item) => item.class_name === "player" || item.class_name === "goalkeeper",
   );
-  if (!ball || players.length === 0) return players[0]?.id ?? null;
+  if (!ball || players.length === 0) return null;
   let best: Detection | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const player of players) {
@@ -165,6 +167,8 @@ function cloneDemo(): DetectResponse {
 
 function App() {
   const fileInput = useRef<HTMLInputElement>(null);
+  const simulationRequest = useRef<AbortController | null>(null);
+  const simulationSelection = useRef<SimulationSelection | null>(null);
   const [step, setStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -186,7 +190,7 @@ function App() {
   const [runnerId, setRunnerId] = useState<string | null>(null);
 
   const activeComparison = useMemo(
-    () => comparisons.find((item) => item.id === activeComparisonId) ?? comparisons.at(-1) ?? null,
+    () => comparisons.find((item) => item.id === activeComparisonId) ?? null,
     [activeComparisonId, comparisons],
   );
   const candidate = useMemo(
@@ -194,7 +198,23 @@ function App() {
     [analysis, candidateCarrierId],
   );
 
+  useEffect(() => () => {
+    simulationRequest.current?.abort();
+    simulationRequest.current = null;
+  }, []);
+
+  function cancelSimulation() {
+    if (simulationRequest.current) {
+      simulationRequest.current.abort();
+      simulationRequest.current = null;
+      setBusy(false);
+    }
+    simulationSelection.current = null;
+    setActiveComparisonId(null);
+  }
+
   function resetAnalysis(nextImageUrl: string | null = null) {
+    cancelSimulation();
     if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
     setImageUrl(nextImageUrl);
     setAnalysis(null);
@@ -246,6 +266,7 @@ function App() {
   }
 
   function updateDetection(id: string, patch: Partial<Detection>) {
+    cancelSimulation();
     setAnalysis((current) =>
       current
         ? {
@@ -269,13 +290,17 @@ function App() {
   }
 
   function removeDetection(id: string) {
+    cancelSimulation();
     setAnalysis((current) =>
       current
         ? { ...current, detections: current.detections.filter((item) => item.id !== id) }
         : current,
     );
     setCarrierId(null);
+    setCandidateCarrierId(null);
+    setRunnerId(null);
     setComparisons([]);
+    setActiveComparisonId(null);
     setMaxStep((current) => Math.min(current, 4));
   }
 
@@ -302,6 +327,7 @@ function App() {
 
   function handleCanvasClick(point: Point2D) {
     if (step === 3 && manualMode) {
+      if (busy) return;
       if (!pendingLandmark) {
         setError("เลือกชื่อจุดอ้างอิงก่อน แล้วจึงคลิกตำแหน่งเดียวกันบนภาพ");
         return;
@@ -341,11 +367,21 @@ function App() {
     }
   }
 
+  function removeCalibrationPoints(label?: string) {
+    if (busy) return;
+    setCalibrationPairs((current) => label ? current.filter((pair) => pair.label !== label) : []);
+    setPendingLandmark((current) => !label || current?.code === label.split(":")[0] ? null : current);
+    setError(null);
+    setNotice(label ? `ลบจุด “${label}” แล้ว สามารถเลือกใหม่ได้` : "ล้างจุดอ้างอิงทั้งหมดแล้ว");
+  }
+
   async function submitManualCalibration() {
     if (!analysis || calibrationPairs.length < 4) {
       setError("ต้องเลือกจุดอ้างอิงอย่างน้อย 4 จุด");
       return;
     }
+    cancelSimulation();
+    setComparisons([]);
     setBusy(true);
     setError(null);
     try {
@@ -374,7 +410,9 @@ function App() {
     setStep(4);
     setMaxStep((current) => Math.max(current, 4));
     setError(null);
-    setNotice(suggestion ? `AI แนะนำ ${suggestion} เป็น Ball Carrier กรุณาตรวจและยืนยัน` : null);
+    setNotice(suggestion
+      ? `AI แนะนำ ${suggestion} เป็น Ball Carrier กรุณาตรวจและยืนยัน`
+      : "ไม่สามารถแนะนำคนครองบอลได้ กรุณาคลิกเลือกผู้เล่นบนภาพ");
   }
 
   function confirmCarrier() {
@@ -386,6 +424,8 @@ function App() {
       setError("ผู้เล่นที่เลือกต้องมี Team ID และพิกัดสนามที่ผ่าน Calibration");
       return;
     }
+    cancelSimulation();
+    if (carrierId !== candidate.id) setComparisons([]);
     setCarrierId(candidate.id);
     setRunnerId(null);
     setStep(5);
@@ -395,21 +435,31 @@ function App() {
   }
 
   async function runSimulation(
-    target: { type: "receiver" | "space" | "through_ball"; position: Point2D; receiver_id?: string },
+    target: SimulationTarget,
     targetPixel: Point2D,
     targetLabel: string,
+    nextPassType: PassType = passType,
+    nextParameters: SimulationParameters = parameters,
   ) {
     if (!analysis || !carrierId) return;
+    simulationRequest.current?.abort();
+    const request = new AbortController();
+    simulationRequest.current = request;
+    simulationSelection.current = { target, targetPixel, targetLabel };
+    setActiveComparisonId(null);
     setBusy(true);
     setError(null);
+    setNotice(`กำลังคำนวณ ${targetLabel} · ${nextPassType.toUpperCase()}…`);
     try {
       const result = await simulatePass({
         detections: analysis.detections,
         carrierId,
-        passType,
+        passType: nextPassType,
         target,
-        parameters,
+        parameters: nextParameters,
+        signal: request.signal,
       });
+      if (request.signal.aborted || simulationRequest.current !== request) return;
       let interceptPixel: Point2D | null = null;
       if (result.intercept_point && analysis.calibration.matrix) {
         const inverse = invertMatrix3(analysis.calibration.matrix);
@@ -417,8 +467,10 @@ function App() {
       }
       const comparison: Comparison = {
         id: crypto.randomUUID(),
+        target,
         targetLabel,
         targetPixel,
+        parameters: { ...nextParameters },
         interceptPixel,
         result,
       };
@@ -426,10 +478,68 @@ function App() {
       setActiveComparisonId(comparison.id);
       setNotice(`คำนวณ ${targetLabel} แล้ว — ความเสี่ยงถูกตัดบอล ${result.risk_percent}%`);
     } catch (caught) {
+      if (request.signal.aborted || simulationRequest.current !== request) return;
       setError(caught instanceof Error ? caught.message : "คำนวณ Simulation ไม่สำเร็จ");
+      setNotice(null);
     } finally {
-      setBusy(false);
+      if (simulationRequest.current === request) {
+        simulationRequest.current = null;
+        setBusy(false);
+      }
     }
+  }
+
+  function changePassType(nextPassType: PassType) {
+    if (nextPassType === passType) return;
+    setPassType(nextPassType);
+    setError(null);
+    const selection = simulationSelection.current;
+    if (selection) {
+      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, nextPassType);
+    }
+  }
+
+  function changeTargetMode(nextMode: TargetMode) {
+    if (nextMode === targetMode) return;
+    cancelSimulation();
+    setTargetMode(nextMode);
+    setRunnerId(null);
+    setError(null);
+    setNotice(nextMode === "receiver"
+      ? "เลือกผู้รับบอลในทีมเพื่อคำนวณใหม่"
+      : nextMode === "space"
+        ? "คลิกพื้นที่ว่างบนภาพเพื่อคำนวณใหม่"
+        : "เลือกเพื่อนที่จะวิ่งรับบอล แล้วคลิกจุดว่างข้างหน้าเพื่อคำนวณใหม่");
+  }
+
+  function changeRunner(id: string) {
+    if (id === runnerId) return;
+    cancelSimulation();
+    setRunnerId(id);
+    setError(null);
+    setNotice(`เลือก ${id} เป็นผู้วิ่งแล้ว คลิกจุดว่างข้างหน้าเพื่อคำนวณใหม่`);
+  }
+
+  function changeParameters(nextParameters: SimulationParameters) {
+    setParameters(nextParameters);
+    const selection = simulationSelection.current;
+    if (selection) {
+      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, passType, nextParameters);
+    }
+  }
+
+  function selectComparison(id: string) {
+    const comparison = comparisons.find((item) => item.id === id);
+    if (!comparison) return;
+    cancelSimulation();
+    simulationSelection.current = comparison;
+    setPassType(comparison.result.pass_type);
+    setTargetMode(comparison.target.type);
+    setRunnerId(comparison.target.type === "through_ball" ? comparison.target.receiver_id ?? null : null);
+    setParameters({ ...comparison.parameters });
+    setActiveComparisonId(id);
+    setError(null);
+    setNotice(`แสดงผล ${comparison.targetLabel} · ${comparison.result.pass_type.toUpperCase()}`);
   }
 
   function handleDetectionClick(detection: Detection) {
@@ -497,7 +607,10 @@ function App() {
           </p>
         </section>
 
-        <StepRail current={step} maxStep={maxStep} onStep={setStep} />
+        <StepRail current={step} maxStep={maxStep} onStep={(nextStep) => {
+          if (step === 5 && nextStep !== 5) cancelSimulation();
+          setStep(nextStep);
+        }} />
 
         {error ? <div className="alert error-alert" role="alert"><strong>ตรวจสอบอีกครั้ง</strong>{error}</div> : null}
         {notice ? <div className="alert notice-alert" role="status">{notice}</div> : null}
@@ -567,7 +680,7 @@ function App() {
                 <span className="panel-number">02</span>
                 <span className="eyebrow">VERIFY BEFORE ANALYSIS</span>
                 <h2>ตรวจผู้เล่นและทีม</h2>
-                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
+                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด และลบลูกบอลที่ตรวจจับเกินมาได้ ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
                 <DetectionReview detections={analysis.detections} onUpdate={updateDetection} onRemove={removeDetection} />
                 <button className="primary-button" type="button" onClick={continueToCalibration}>
                   ยืนยันผู้เล่นและทีม <span>→</span>
@@ -625,6 +738,7 @@ function App() {
                                 top: `${(landmark.field.y / 68) * 100}%`,
                               }}
                               title={landmark.label}
+                              disabled={busy}
                               aria-label={`${landmark.code}: ${landmark.label}${completed ? " เลือกแล้ว" : ""}`}
                               aria-pressed={pending}
                               onClick={() => setPendingLandmark(landmark)}
@@ -645,7 +759,52 @@ function App() {
                         <span>× อย่าวางบนตัวผู้เล่น เงา หรือพื้นที่หญ้าใกล้เคียง</span>
                         <small>เลือกจุดที่กระจายรอบพื้นที่ภาพ ช่วยลดอาการ Marker กระโดดจาก Homography ที่ไม่เสถียร</small>
                       </div>
+                      {pendingLandmark ? (
+                        <button
+                          className="text-button"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setPendingLandmark(null);
+                            setError(null);
+                          }}
+                        >
+                          ยกเลิกการเลือกจุดนี้
+                        </button>
+                      ) : null}
                     </div>
+                    {calibrationPairs.length > 0 ? (
+                      <section className="calibration-points" aria-label="จุดอ้างอิงที่เลือกแล้ว">
+                        <div className="calibration-points-heading">
+                          <h3>จุดที่เลือก ({calibrationPairs.length})</h3>
+                          <button
+                            className="text-button danger"
+                            type="button"
+                            disabled={busy}
+                            onClick={() => removeCalibrationPoints()}
+                          >
+                            ล้างทั้งหมด
+                          </button>
+                        </div>
+                        <ol>
+                          {calibrationPairs.map((pair) => (
+                            <li key={pair.label}>
+                              <span className="calibration-point-index">{pair.label.split(":")[0]}</span>
+                              <span>{pair.label.slice(pair.label.indexOf(":") + 1).trim()}</span>
+                              <button
+                                className="text-button danger"
+                                type="button"
+                                disabled={busy}
+                                aria-label={`ลบจุด ${pair.label}`}
+                                onClick={() => removeCalibrationPoints(pair.label)}
+                              >
+                                ลบ
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                    ) : null}
                     <div className="landmark-categories">
                       {landmarkGroups.map((group) => {
                         const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
@@ -667,6 +826,7 @@ function App() {
                                     key={landmark.label}
                                     className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
                                     aria-pressed={pendingLandmark?.label === landmark.label}
+                                    disabled={busy}
                                     onClick={() => setPendingLandmark(landmark)}
                                   >
                                     <span>{completed ? "✓" : landmark.code}</span>{landmark.label}
@@ -702,7 +862,9 @@ function App() {
                 <span className="panel-number">04</span>
                 <span className="eyebrow">LOCK THE ORIGIN</span>
                 <h2>ยืนยันคนครองบอล</h2>
-                <p>ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง</p>
+                <p>{analysis.detections.some((item) => item.class_name === "ball")
+                  ? "ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง"
+                  : "ไม่มีลูกบอลที่ตรวจพบ กรุณาคลิกกรอบผู้เล่นบนภาพเพื่อเลือกคนครองบอลด้วยตนเอง"}</p>
                 <div className="carrier-choice">
                   <span>ผู้เล่นที่เลือก</span>
                   <strong>{candidate?.id ?? "ยังไม่ได้เลือก"}</strong>
@@ -719,30 +881,30 @@ function App() {
                 <span className="panel-number">05</span>
                 <span className="eyebrow">COMPARE PASS OPTIONS</span>
                 <h2>เลือกเป้าหมาย</h2>
-                <p>เลือกรูปแบบการจ่ายและประเภทเป้าหมาย แล้วคลิกผู้เล่นหรือพื้นที่บนสนาม ผลใหม่จะไม่รัน Detection ซ้ำ</p>
+                <p>เลือกผู้รับหรือจุดบนสนาม แล้วเปลี่ยนรูปแบบการจ่ายเพื่อคำนวณเป้าหมายเดิมใหม่ได้ทันที โดยไม่รัน Detection ซ้ำ</p>
                 <div className="locked-carrier"><span>Ball Carrier</span><strong>{carrierId}</strong><i>LOCKED</i></div>
                 <div className="simulation-choices">
                   <span>รูปแบบการจ่าย</span>
                   <div className="segmented-control" role="group" aria-label="รูปแบบการจ่ายบอล">
-                    <button type="button" aria-pressed={passType === "ground"} onClick={() => setPassType("ground")}>
+                    <button type="button" aria-pressed={passType === "ground"} onClick={() => changePassType("ground")}>
                       <strong>GROUND</strong><small>ลูกเรียด</small>
                     </button>
-                    <button type="button" aria-pressed={passType === "chip"} onClick={() => setPassType("chip")}>
+                    <button type="button" aria-pressed={passType === "chip"} onClick={() => changePassType("chip")}>
                       <strong>CHIP</strong><small>ลูกชิพ</small>
                     </button>
-                    <button type="button" aria-pressed={passType === "long_ball"} onClick={() => setPassType("long_ball")}>
+                    <button type="button" aria-pressed={passType === "long_ball"} onClick={() => changePassType("long_ball")}>
                       <strong>LONG</strong><small>เปิดยาว</small>
                     </button>
                   </div>
                   <span>ประเภทเป้าหมาย</span>
                   <div className="segmented-control" role="group" aria-label="ประเภทเป้าหมาย">
-                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => { setTargetMode("receiver"); setRunnerId(null); }}>
+                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => changeTargetMode("receiver")}>
                       <strong>PLAYER</strong><small>ส่งให้เพื่อน</small>
                     </button>
-                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => { setTargetMode("space"); setRunnerId(null); }}>
+                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => changeTargetMode("space")}>
                       <strong>SPACE</strong><small>จ่ายเข้าที่ว่าง</small>
                     </button>
-                    <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => { setTargetMode("through_ball"); setRunnerId(null); }}>
+                    <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => changeTargetMode("through_ball")}>
                       <strong>THROUGH</strong><small>แทงทะลุช่อง</small>
                     </button>
                   </div>
@@ -766,7 +928,7 @@ function App() {
                             type="button"
                             key={receiver.id}
                             aria-pressed={targetMode === "through_ball" ? runnerId === receiver.id : undefined}
-                            onClick={() => targetMode === "through_ball" ? setRunnerId(receiver.id) : handleDetectionClick(receiver)}
+                            onClick={() => targetMode === "through_ball" ? changeRunner(receiver.id) : handleDetectionClick(receiver)}
                           >
                             {receiver.id}
                           </button>
@@ -799,17 +961,17 @@ function App() {
                           max={max}
                           step={increment}
                           value={parameters[key]}
-                          onChange={(event) => setParameters((current) => ({ ...current, [key]: Number(event.target.value) }))}
+                          onChange={(event) => changeParameters({ ...parameters, [key]: Number(event.target.value) })}
                         /><small>{unit}</small></div>
                       </label>
                     ))}
                   </div>
-                  <button className="text-button" type="button" onClick={() => setParameters(defaultParameters)}>คืนค่าเริ่มต้น</button>
+                  <button className="text-button" type="button" onClick={() => changeParameters(defaultParameters)}>คืนค่าเริ่มต้น</button>
                   <small className="model-note">* ค่าเปิดยาวเป็นค่าทดลองจากงานศึกษาหนึ่งชุด ไม่ใช่ค่ามาตรฐานสากล</small>
                 </details>
                 {activeComparison ? (
                   <div className={`active-risk risk-${activeComparison.result.risk}`}>
-                    <span>LATEST RESULT</span>
+                    <span>ผลลัพธ์ที่เลือก · {activeComparison.result.pass_type.toUpperCase()}</span>
                     <strong>{activeComparison.result.risk_percent}%</strong>
                     <p>ระดับ {activeComparison.result.risk.toUpperCase()}</p>
                     <p>{activeComparison.result.explanation}</p>
@@ -828,7 +990,13 @@ function App() {
                       <p>{activeComparison.result.disclaimer}</p>
                     </details>
                   </div>
-                ) : null}
+                ) : <p className="space-hint" role="status">{busy
+                  ? "กำลังคำนวณผลใหม่…"
+                  : targetMode === "receiver"
+                    ? "เลือกผู้รับบอลเพื่อแสดงผล"
+                    : targetMode === "space"
+                      ? "เลือกจุดเป้าหมายบนสนามเพื่อแสดงผล"
+                      : "เลือกผู้วิ่งและจุดเป้าหมายบนสนามเพื่อแสดงผล"}</p>}
               </div>
             ) : null}
           </aside>
@@ -838,10 +1006,11 @@ function App() {
           <RiskResults
             comparisons={comparisons}
             activeId={activeComparison?.id ?? null}
-            onSelect={setActiveComparisonId}
+            onSelect={selectComparison}
             onClear={() => {
+              cancelSimulation();
               setComparisons([]);
-              setActiveComparisonId(null);
+              setNotice("ล้างผลแล้ว เลือกเป้าหมายเพื่อคำนวณใหม่");
             }}
           />
         ) : null}

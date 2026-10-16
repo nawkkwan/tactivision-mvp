@@ -3,9 +3,9 @@ import type {
   DetectResponse,
   Detection,
   PassType,
-  Point2D,
   SimulationParameters,
   SimulationResult,
+  SimulationTarget,
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
@@ -53,8 +53,9 @@ export async function simulatePass(input: {
   detections: Detection[];
   carrierId: string;
   passType: PassType;
-  target: { type: "receiver" | "space" | "through_ball"; position: Point2D; receiver_id?: string };
+  target: SimulationTarget;
   parameters: SimulationParameters;
+  signal?: AbortSignal;
 }): Promise<SimulationResult> {
   const players = input.detections
     .filter(
@@ -71,6 +72,7 @@ export async function simulatePass(input: {
     }));
   const response = await fetch(`${API_URL}/simulate`, {
     method: "POST",
+    signal: input.signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       players,

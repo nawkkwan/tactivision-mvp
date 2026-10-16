@@ -58,6 +58,7 @@ export function PitchWorkspace({
   onCanvasClick,
 }: PitchWorkspaceProps) {
   const image = useCanvasImage(imageUrl);
+  const [hoveredDetectionId, setHoveredDetectionId] = useState<string | null>(null);
   const scale = imageWidth > 0 ? CANVAS_WIDTH / imageWidth : 1;
   const canvasHeight = Math.max(420, imageHeight * scale);
   const carrier = useMemo(
@@ -72,6 +73,7 @@ export function PitchWorkspace({
         <Stage
           width={CANVAS_WIDTH}
           height={canvasHeight}
+          onMouseLeave={() => setHoveredDetectionId(null)}
           onClick={(event) => {
             if (event.target !== event.target.getStage()) return;
             const pointer = event.target.getStage()?.getPointerPosition();
@@ -114,6 +116,12 @@ export function PitchWorkspace({
             ) : null}
             {detections.map((detection) => {
               const selected = detection.id === carrierId || detection.id === candidateCarrierId;
+              const hovered = detection.id === hoveredDetectionId;
+              const classSuffix =
+                detection.class_name === "goalkeeper" ? " GK" : detection.class_name === "referee" ? " REF" : "";
+              const label = selected || hovered
+                ? `${detection.id} · ${detection.class_name}`
+                : `${detection.id}${classSuffix}`;
               const color =
                 detection.class_name === "ball"
                   ? "#ffffff"
@@ -121,6 +129,8 @@ export function PitchWorkspace({
               return (
                 <Group
                   key={detection.id}
+                  onMouseEnter={() => setHoveredDetectionId(detection.id)}
+                  onMouseLeave={() => setHoveredDetectionId(null)}
                   onClick={(event) => {
                     event.cancelBubble = true;
                     onDetectionClick(detection);
@@ -131,36 +141,33 @@ export function PitchWorkspace({
                     y={detection.bbox.y * scale}
                     width={detection.bbox.width * scale}
                     height={detection.bbox.height * scale}
+                    fill="transparent"
                     stroke={selected ? "#62f5b3" : color}
-                    strokeWidth={selected ? 5 : 3}
-                    cornerRadius={5}
-                    shadowColor={selected ? "#62f5b3" : color}
-                    shadowBlur={selected ? 16 : 5}
+                    strokeWidth={selected || hovered ? 2 : 1.25}
+                    hitStrokeWidth={10}
+                    cornerRadius={2}
                   />
                   {detection.class_name !== "referee" ? (
                     <Group x={detection.foot_pixel.x * scale} y={detection.foot_pixel.y * scale}>
                       <Circle
-                        radius={selected ? 8 : 6}
+                        radius={selected ? 5 : 4}
                         fill={selected ? "#62f5b3" : color}
                         stroke="#071512"
-                        strokeWidth={2}
+                        strokeWidth={1}
+                        hitStrokeWidth={8}
                       />
-                      <Line points={[-11, 0, 11, 0]} stroke={color} strokeWidth={1} listening={false} />
-                      <Line points={[0, -11, 0, 11]} stroke={color} strokeWidth={1} listening={false} />
-                      <Label x={9} y={5} listening={false}>
-                        <Tag fill="rgba(7, 21, 18, .9)" cornerRadius={3} />
-                        <Text text={detection.id.toUpperCase()} fill={color} fontSize={10} fontStyle="bold" padding={4} />
-                      </Label>
+                      <Line points={[-7, 0, 7, 0]} stroke={color} strokeWidth={1} listening={false} />
+                      <Line points={[0, -7, 0, 7]} stroke={color} strokeWidth={1} listening={false} />
                     </Group>
                   ) : null}
-                  <Label x={detection.bbox.x * scale} y={Math.max(0, detection.bbox.y * scale - 23)}>
-                    <Tag fill={selected ? "#62f5b3" : color} cornerRadius={4} />
+                  <Label x={detection.bbox.x * scale} y={Math.max(0, detection.bbox.y * scale - 18)}>
+                    <Tag fill={selected ? "#62f5b3" : color} cornerRadius={2} />
                     <Text
-                      text={`${detection.id} · ${detection.class_name}`}
+                      text={label}
                       fill="#071512"
-                      fontSize={12}
+                      fontSize={10}
                       fontStyle="bold"
-                      padding={5}
+                      padding={3}
                     />
                   </Label>
                 </Group>
