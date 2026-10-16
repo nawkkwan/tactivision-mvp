@@ -1,0 +1,12 @@
+# ตัวอย่างโครงสร้างเท่านั้น
+# ใช้ data.yaml จาก Roboflow Export เป็นไฟล์จริง เพราะ Class ID ใน label ต้องตรงกับ names
+path: /content/dataset
+train: images/train
+val: images/valid
+test: images/test
+
+names:
+  0: player
+  1: goalkeeper
+  2: referee
+  3: ball
