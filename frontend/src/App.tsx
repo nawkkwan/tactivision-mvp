@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { calibrateImage, detectImage, simulatePass } from "./api";
 import { DetectionReview } from "./components/DetectionReview";
+import { FieldMap } from "./components/FieldMap";
 import { PitchWorkspace } from "./components/PitchWorkspace";
 import { RiskResults } from "./components/RiskResults";
 import { StepRail } from "./components/StepRail";
@@ -97,9 +98,25 @@ const landmarkGroups = [
   },
 ] as const;
 
+let nextLandmarkNumber = 1;
 const landmarks = landmarkGroups
   .flatMap((group) => group.points.map((point) => ({ ...point, group: group.title })))
-  .map((landmark, index) => ({ ...landmark, number: index + 1 }));
+  .map((landmark) => {
+    if (landmark.label === "จุดกลางสนาม") return { ...landmark, code: "P12" };
+    if (nextLandmarkNumber === 12) nextLandmarkNumber += 1;
+    return { ...landmark, code: `P${nextLandmarkNumber++}` };
+  });
+
+function calibrationErrorLevel(error: number | null) {
+  if (error === null) return null;
+  if (error <= 0.75) return { label: "ดี", className: "good" };
+  if (error <= 2) return { label: "ควรตรวจซ้ำ", className: "warning" };
+  return { label: "สูงเกินเกณฑ์", className: "danger" };
+}
+
+function hasCalibrationPair(pair: CalibrationPair, landmark: (typeof landmarks)[number]) {
+  return pair.label.startsWith(`${landmark.code}:`);
+}
 
 function applyHomography(point: Point2D, matrix: number[][]): Point2D | null {
   const denominator = matrix[2][0] * point.x + matrix[2][1] * point.y + matrix[2][2];
@@ -290,10 +307,10 @@ function App() {
         return;
       }
       setCalibrationPairs((current) => [
-        ...current.filter((pair) => pair.label !== pendingLandmark.label),
-        { label: pendingLandmark.label, image: point, field: pendingLandmark.field },
+        ...current.filter((pair) => !hasCalibrationPair(pair, pendingLandmark)),
+        { label: `${pendingLandmark.code}: ${pendingLandmark.label}`, image: point, field: pendingLandmark.field },
       ]);
-      setNotice(`บันทึกจุด “${pendingLandmark.label}” แล้ว`);
+      setNotice(`บันทึก ${pendingLandmark.code} · ${pendingLandmark.label} แล้ว`);
       setPendingLandmark(null);
       setError(null);
       return;
@@ -456,6 +473,7 @@ function App() {
     : analysis
       ? `${analysis.detector.model} · ${analysis.detector.mode === "fine_tuned" ? "Fine-tuned" : isFixture ? "Sample fixture" : "Generic"}`
       : "พร้อมเริ่มวิเคราะห์";
+  const errorLevel = calibrationErrorLevel(analysis?.calibration.reprojection_error ?? null);
 
   return (
     <div className="app-shell">
@@ -501,6 +519,13 @@ function App() {
               onDetectionClick={handleDetectionClick}
               onCanvasClick={handleCanvasClick}
             />
+            {analysis && step >= 3 && analysis.calibration.status === "success" ? (
+              <FieldMap
+                detections={analysis.detections}
+                carrierId={carrierId}
+                candidateCarrierId={candidateCarrierId}
+              />
+            ) : null}
             <div className="legend">
               <span><i className="dot team-a" />Team A</span>
               <span><i className="dot team-b" />Team B</span>
@@ -558,8 +583,11 @@ function App() {
                 <div className={`calibration-card ${analysis.calibration.status}`}>
                   <div><strong>{analysis.calibration.method.toUpperCase()}</strong><span>{Math.round(analysis.calibration.confidence * 100)}%</span></div>
                   <p>{analysis.calibration.message}</p>
-                  {analysis.calibration.reprojection_error !== null ? (
-                    <small>Reprojection error: {analysis.calibration.reprojection_error.toFixed(2)}</small>
+                  {analysis.calibration.reprojection_error !== null && errorLevel ? (
+                    <div className={`reprojection-status ${errorLevel.className}`}>
+                      <span>Reprojection error</span>
+                      <strong>{analysis.calibration.reprojection_error.toFixed(2)} m · {errorLevel.label}</strong>
+                    </div>
                   ) : null}
                 </div>
                 {!manualMode && analysis.calibration.status === "success" ? (
@@ -577,7 +605,7 @@ function App() {
                     <div className="landmark-guide" aria-label="แผนผังตำแหน่งจุดอ้างอิงบนสนาม">
                       <div className="landmark-guide-heading">
                         <span>แผนผังสนามอ้างอิง</span>
-                        <small>{landmarks.length} จุดอ้างอิง · เลือก 4 จุดที่เห็นในภาพ</small>
+                        <small>{landmarks.length} จุดอ้างอิง · P12 คือจุดกลางสนาม</small>
                       </div>
                       <div className="mini-pitch">
                         <span className="mini-pitch-halfway" />
@@ -585,7 +613,7 @@ function App() {
                         <span className="mini-pitch-box mini-pitch-box-left" />
                         <span className="mini-pitch-box mini-pitch-box-right" />
                         {landmarks.map((landmark) => {
-                          const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
+                          const completed = calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark));
                           const pending = pendingLandmark?.label === landmark.label;
                           return (
                             <button
@@ -597,26 +625,32 @@ function App() {
                                 top: `${(landmark.field.y / 68) * 100}%`,
                               }}
                               title={landmark.label}
-                              aria-label={`จุด ${landmark.number}: ${landmark.label}${completed ? " เลือกแล้ว" : ""}`}
+                              aria-label={`${landmark.code}: ${landmark.label}${completed ? " เลือกแล้ว" : ""}`}
                               aria-pressed={pending}
                               onClick={() => setPendingLandmark(landmark)}
                             >
-                              {completed ? "✓" : landmark.number}
+                              {completed ? "✓" : landmark.code}
                             </button>
                           );
                         })}
                       </div>
                       <p className={`landmark-instruction ${pendingLandmark ? "active" : ""}`}>
                         {pendingLandmark
-                          ? `เลือกจุด ${pendingLandmark.number}: ${pendingLandmark.label} แล้ว — คลิกตำแหน่งเดียวกันบนภาพใหญ่`
+                          ? `เลือก ${pendingLandmark.code}: ${pendingLandmark.label} แล้ว — คลิกตำแหน่งเดียวกันบนภาพใหญ่`
                           : "กดหมายเลขที่มองเห็นชัดในภาพ แล้วไปคลิกตำแหน่งเดียวกันบนภาพใหญ่"}
                       </p>
+                      <div className="calibration-example">
+                        <strong>ตัวอย่างการวางจุด</strong>
+                        <span>✓ วางทับจุดตัดของเส้นจริง</span>
+                        <span>× อย่าวางบนตัวผู้เล่น เงา หรือพื้นที่หญ้าใกล้เคียง</span>
+                        <small>เลือกจุดที่กระจายรอบพื้นที่ภาพ ช่วยลดอาการ Marker กระโดดจาก Homography ที่ไม่เสถียร</small>
+                      </div>
                     </div>
                     <div className="landmark-categories">
                       {landmarkGroups.map((group) => {
                         const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
                         const selectedCount = groupLandmarks.filter((landmark) =>
-                          calibrationPairs.some((pair) => pair.label === landmark.label),
+                          calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark)),
                         ).length;
                         return (
                           <details className="landmark-category" key={group.title} open={group.title === "วงกลมกลางสนาม"}>
@@ -626,7 +660,7 @@ function App() {
                             </summary>
                             <div className="landmark-grid">
                               {groupLandmarks.map((landmark) => {
-                                const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
+                                const completed = calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark));
                                 return (
                                   <button
                                     type="button"
@@ -635,7 +669,7 @@ function App() {
                                     aria-pressed={pendingLandmark?.label === landmark.label}
                                     onClick={() => setPendingLandmark(landmark)}
                                   >
-                                    <span>{completed ? "✓" : landmark.number}</span>{landmark.label}
+                                    <span>{completed ? "✓" : landmark.code}</span>{landmark.label}
                                   </button>
                                 );
                               })}
