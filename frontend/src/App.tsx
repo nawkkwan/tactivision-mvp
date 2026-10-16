@@ -143,7 +143,7 @@ function suggestCarrier(detections: Detection[]): string | null {
   const players = detections.filter(
     (item) => item.class_name === "player" || item.class_name === "goalkeeper",
   );
-  if (!ball || players.length === 0) return players[0]?.id ?? null;
+  if (!ball || players.length === 0) return null;
   let best: Detection | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const player of players) {
@@ -275,7 +275,10 @@ function App() {
         : current,
     );
     setCarrierId(null);
+    setCandidateCarrierId(null);
+    setRunnerId(null);
     setComparisons([]);
+    setActiveComparisonId(null);
     setMaxStep((current) => Math.min(current, 4));
   }
 
@@ -374,7 +377,9 @@ function App() {
     setStep(4);
     setMaxStep((current) => Math.max(current, 4));
     setError(null);
-    setNotice(suggestion ? `AI แนะนำ ${suggestion} เป็น Ball Carrier กรุณาตรวจและยืนยัน` : null);
+    setNotice(suggestion
+      ? `AI แนะนำ ${suggestion} เป็น Ball Carrier กรุณาตรวจและยืนยัน`
+      : "ไม่สามารถแนะนำคนครองบอลได้ กรุณาคลิกเลือกผู้เล่นบนภาพ");
   }
 
   function confirmCarrier() {
@@ -567,7 +572,7 @@ function App() {
                 <span className="panel-number">02</span>
                 <span className="eyebrow">VERIFY BEFORE ANALYSIS</span>
                 <h2>ตรวจผู้เล่นและทีม</h2>
-                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
+                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด และลบลูกบอลที่ตรวจจับเกินมาได้ ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
                 <DetectionReview detections={analysis.detections} onUpdate={updateDetection} onRemove={removeDetection} />
                 <button className="primary-button" type="button" onClick={continueToCalibration}>
                   ยืนยันผู้เล่นและทีม <span>→</span>
@@ -702,7 +707,9 @@ function App() {
                 <span className="panel-number">04</span>
                 <span className="eyebrow">LOCK THE ORIGIN</span>
                 <h2>ยืนยันคนครองบอล</h2>
-                <p>ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง</p>
+                <p>{analysis.detections.some((item) => item.class_name === "ball")
+                  ? "ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง"
+                  : "ไม่มีลูกบอลที่ตรวจพบ กรุณาคลิกกรอบผู้เล่นบนภาพเพื่อเลือกคนครองบอลด้วยตนเอง"}</p>
                 <div className="carrier-choice">
                   <span>ผู้เล่นที่เลือก</span>
                   <strong>{candidate?.id ?? "ยังไม่ได้เลือก"}</strong>

@@ -91,11 +91,17 @@ main { max-width: 1440px; margin: 0 auto; padding: 0 36px 72px; }
 .text-button:hover { color: #62f5b3; border-color: #62f5b3; }
 .text-button.danger:hover { color: #ff7d87; border-color: #ff7d87; }
 
+.ball-review { margin-top: 22px; padding: 12px; border: 1px solid rgba(161, 213, 192, .17); background: #091814; }
+.ball-review h3 { margin: 0 0 6px; color: #c6ded5; font-size: 12px; }
+.ball-review > p { margin: 8px 0 0; font-size: 11px; line-height: 1.6; }
 .detection-list { max-height: 330px; margin: 22px -8px 0 0; padding-right: 8px; overflow-y: auto; }
 .detection-row { display: grid; grid-template-columns: 55px 1fr 1fr 28px; gap: 7px; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(161, 213, 192, .1); }
 .detection-row > div { display: flex; flex-direction: column; }
 .detection-row strong { font-family: Consolas, monospace; color: #d9eee6; font-size: 12px; }
 .detection-row small { color: #5c7c70; font-size: 8px; }
+.ball-detection-row { grid-template-columns: 55px 1fr auto; }
+.ball-detection-row > span { color: #a4c2b7; font-size: 12px; }
+.ball-detection-row .text-button { margin-top: 0; }
 select, input[type="number"] { min-width: 0; width: 100%; padding: 7px 8px; color: #c6ded5; border: 1px solid rgba(161, 213, 192, .2); border-radius: 2px; background: #0a1815; font-size: 10px; }
 
 .calibration-card { margin: 22px 0; padding: 16px; border: 1px solid rgba(248, 214, 109, .35); background: rgba(248, 214, 109, .06); }
