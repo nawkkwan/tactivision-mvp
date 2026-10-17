@@ -5,8 +5,8 @@ import type { CalibrationPair, Detection, PassType, Point2D } from "../types";
 const CANVAS_WIDTH = 760;
 const teamColors = {
   team_a: "#50d9ff",
-  team_b: "#ff7d87",
-  unassigned: "#f8d66d",
+  team_b: "#ff5c67",
+  unassigned: "#eaaf37",
 } as const;
 
 function useCanvasImage(source: string | null) {
@@ -68,7 +68,7 @@ export function PitchWorkspace({
 
   return (
     <div className="canvas-shell" role="img" aria-label="พื้นที่วิเคราะห์ภาพฟุตบอล">
-      {!image ? <div className="canvas-empty">เลือกภาพเพื่อเริ่มวิเคราะห์</div> : null}
+      {!image ? <div className="canvas-empty">อัปโหลดภาพ หรือคลิก "ลองฉากตัวอย่าง" เพื่อเริ่มต้นวิเคราะห์</div> : null}
       {image ? (
         <Stage
           width={CANVAS_WIDTH}
@@ -90,8 +90,8 @@ export function PitchWorkspace({
                   targetPixel.x * scale,
                   targetPixel.y * scale,
                 ]}
-                stroke={passType === "ground" ? "#62f5b3" : "#f8d66d"}
-                fill={passType === "ground" ? "#62f5b3" : "#f8d66d"}
+                stroke={passType === "ground" ? "#10b981" : "#eaaf37"}
+                fill={passType === "ground" ? "#10b981" : "#eaaf37"}
                 strokeWidth={4}
                 pointerLength={12}
                 pointerWidth={12}
@@ -103,25 +103,30 @@ export function PitchWorkspace({
                 x={targetPixel.x * scale}
                 y={targetPixel.y * scale}
                 radius={10}
-                fill="#62f5b3"
-                stroke="#071512"
+                fill="#10b981"
+                stroke="#060d18"
                 strokeWidth={3}
               />
             ) : null}
             {interceptPixel ? (
               <Group x={interceptPixel.x * scale} y={interceptPixel.y * scale}>
-                <Line points={[-10, -10, 10, 10]} stroke="#ffb45c" strokeWidth={4} />
-                <Line points={[-10, 10, 10, -10]} stroke="#ffb45c" strokeWidth={4} />
+                <Line points={[-10, -10, 10, 10]} stroke="#eaaf37" strokeWidth={4} />
+                <Line points={[-10, 10, 10, -10]} stroke="#eaaf37" strokeWidth={4} />
               </Group>
             ) : null}
             {detections.map((detection) => {
               const selected = detection.id === carrierId || detection.id === candidateCarrierId;
               const hovered = detection.id === hoveredDetectionId;
+              const roleName = detection.class_name === "goalkeeper"
+                ? "ผู้รักษาประตู"
+                : detection.class_name === "referee"
+                  ? "ผู้ตัดสิน"
+                  : "ผู้เล่น";
               const classSuffix =
-                detection.class_name === "goalkeeper" ? " GK" : detection.class_name === "referee" ? " REF" : "";
+                detection.class_name === "goalkeeper" ? " (โกล)" : detection.class_name === "referee" ? " (ผู้ตัดสิน)" : "";
               const label = selected || hovered
-                ? `${detection.id} · ${detection.class_name}`
-                : `${detection.id}${classSuffix}`;
+                ? `${detection.id.toUpperCase()} · ${roleName}`
+                : `${detection.id.toUpperCase()}${classSuffix}`;
               const color =
                 detection.class_name === "ball"
                   ? "#ffffff"
@@ -142,7 +147,7 @@ export function PitchWorkspace({
                     width={detection.bbox.width * scale}
                     height={detection.bbox.height * scale}
                     fill="transparent"
-                    stroke={selected ? "#62f5b3" : color}
+                    stroke={selected ? "#eaaf37" : color}
                     strokeWidth={selected || hovered ? 2 : 1.25}
                     hitStrokeWidth={10}
                     cornerRadius={2}
@@ -151,8 +156,8 @@ export function PitchWorkspace({
                     <Group x={detection.foot_pixel.x * scale} y={detection.foot_pixel.y * scale}>
                       <Circle
                         radius={selected ? 5 : 4}
-                        fill={selected ? "#62f5b3" : color}
-                        stroke="#071512"
+                        fill={selected ? "#eaaf37" : color}
+                        stroke="#060d18"
                         strokeWidth={1}
                         hitStrokeWidth={8}
                       />
@@ -161,10 +166,10 @@ export function PitchWorkspace({
                     </Group>
                   ) : null}
                   <Label x={detection.bbox.x * scale} y={Math.max(0, detection.bbox.y * scale - 18)}>
-                    <Tag fill={selected ? "#62f5b3" : color} cornerRadius={2} />
+                    <Tag fill={selected ? "#eaaf37" : color} cornerRadius={2} />
                     <Text
                       text={label}
-                      fill="#071512"
+                      fill="#060d18"
                       fontSize={10}
                       fontStyle="bold"
                       padding={3}
@@ -176,10 +181,10 @@ export function PitchWorkspace({
             {stage === 3
               ? calibrationPairs.map((pair, index) => (
                   <Group key={pair.label} x={pair.image.x * scale} y={pair.image.y * scale}>
-                    <Circle radius={13} fill="#f8d66d" stroke="#071512" strokeWidth={3} />
+                    <Circle radius={13} fill="#eaaf37" stroke="#060d18" strokeWidth={3} />
                     <Text
                       text={pair.label.split(":")[0] || String(index + 1)}
-                      fill="#071512"
+                      fill="#060d18"
                       fontSize={9}
                       fontStyle="bold"
                       x={-9}

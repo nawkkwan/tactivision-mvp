@@ -8,8 +8,8 @@ interface FieldMapProps {
 
 const markerColors = {
   team_a: "#50d9ff",
-  team_b: "#ff7d87",
-  unassigned: "#f8d66d",
+  team_b: "#ff5c67",
+  unassigned: "#eaaf37",
 } as const;
 
 export function FieldMap({ detections, carrierId, candidateCarrierId }: FieldMapProps) {
@@ -26,13 +26,13 @@ export function FieldMap({ detections, carrierId, candidateCarrierId }: FieldMap
   );
 
   return (
-    <section className="field-map" aria-label="แผนที่ตำแหน่งผู้เล่นหลัง Calibration">
+    <section className="field-map" aria-label="แผนผังตำแหน่งผู้เล่นบนสนามจริง 2 มิติ">
       <div className="field-map-heading">
         <div>
-          <strong>2D POINT MAPPING</strong>
-          <span>พิกัดสนาม 105 × 68 เมตร</span>
+          <strong>แผนผังพิกัดสนามจริง (2D)</strong>
+          <span>ขนาดมาตรฐาน 105 × 68 เมตร</span>
         </div>
-        <small>{mappedPlayers.length}/{detections.length} จุดอยู่ในสนาม</small>
+        <small>{mappedPlayers.length}/{detections.length} ตำแหน่งอยู่ในสนาม</small>
       </div>
       <div className="field-map-pitch">
         <span className="field-halfway" />
@@ -54,16 +54,16 @@ export function FieldMap({ detections, carrierId, candidateCarrierId }: FieldMap
                 left: `${(position.x / 105) * 100}%`,
                 top: `${(position.y / 68) * 100}%`,
                 borderColor: color,
-                backgroundColor: selected ? color : "#071512",
+                backgroundColor: selected ? color : "#060d18",
               }}
-              title={`${detection.id}: ${position.x.toFixed(1)}, ${position.y.toFixed(1)} m`}
+              title={`${detection.id}: ${position.x.toFixed(1)}, ${position.y.toFixed(1)} ม.`}
             >
               {detection.id.toUpperCase()}
             </span>
           );
         })}
       </div>
-      <p>จุด P12 ต้องอยู่กึ่งกลางสนามเสมอ ใช้ตรวจว่าทิศและตำแหน่งของ Marker ตรงกับภาพต้นฉบับก่อนวิเคราะห์</p>
+      <p>จุด P12 ต้องอยู่กึ่งกลางสนามเสมอ เพื่อตรวจสอบว่าตำแหน่งของนักเตะสอดคล้องกับภาพการแข่งขันจริง</p>
     </section>
   );
 }
