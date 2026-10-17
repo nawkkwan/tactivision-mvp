@@ -8,10 +8,10 @@ export function SiteFooter({ onNavigate }: SiteFooterProps) {
   return (
     <footer className="site-footer">
       <div className="footer-brand"><BrandMark /><strong>TACTIVISION</strong></div>
-      <p>A tactical football journal and analytical workspace for comparing pass routes, field coordinates, and interception assumptions.</p>
+      <p>พื้นที่วิเคราะห์เส้นทางการจ่ายบอล พิกัดสนาม และจุดเสี่ยงถูกสกัด</p>
       <div>
-        <span>METHODOLOGY TRANSPARENCY</span>
-        <p>Results are deterministic kinematic scores based on visible inputs and adjustable assumptions.</p>
+        <span>วิธีการคำนวณ</span>
+        <p>คะแนนมาจากแบบจำลองคิเนมาติกส์และสมมติฐานที่ผู้ใช้ตรวจสอบหรือปรับได้</p>
       </div>
       <nav aria-label="Footer navigation">
         <button type="button" onClick={() => onNavigate("/")}>Home</button>
@@ -19,7 +19,7 @@ export function SiteFooter({ onNavigate }: SiteFooterProps) {
         <button type="button" onClick={() => onNavigate("/news")}>News / Breakdown</button>
         <button type="button" onClick={() => onNavigate("/research")}>Research</button>
       </nav>
-      <small>© 2026 TactiVision Analytical Press.</small>
+      <small>© 2026 TactiVision</small>
     </footer>
   );
 }

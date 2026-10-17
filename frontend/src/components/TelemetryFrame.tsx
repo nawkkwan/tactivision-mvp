@@ -8,8 +8,8 @@ export function TelemetryFrame({ analyzed = false, compact = false, label }: Tel
   return (
     <figure className={`telemetry-frame ${compact ? "compact" : ""}`}>
       <div className="telemetry-caption">
-        <span>{label ?? (analyzed ? "VECTOR TELEMETRY" : "RAW BROADCAST")}</span>
-        <span>FRAME 004 · 105 × 68 M</span>
+        <span>{label ?? (analyzed ? "หลังวิเคราะห์เส้นทาง" : "ภาพการแข่งขัน")}</span>
+        <span>สนาม 105 × 68 ม.</span>
       </div>
       <div className="telemetry-image">
         <img src="/demo-pitch.svg" alt={analyzed ? "ตัวอย่างภาพฟุตบอลพร้อมเส้นทางวิเคราะห์" : "ตัวอย่างภาพการแข่งขันฟุตบอล"} />
@@ -29,7 +29,7 @@ export function TelemetryFrame({ analyzed = false, compact = false, label }: Tel
           </svg>
         ) : null}
       </div>
-      <figcaption>{analyzed ? "ตัวอย่างเส้นทางเพื่ออธิบาย UI — ไม่ใช่ผลการแข่งขันจริง" : "ภาพต้นทางก่อนใช้ข้อมูลพิกัดและเส้นทาง"}</figcaption>
+      <figcaption>{analyzed ? "ภาพตัวอย่างการแสดงเส้นทาง ไม่ใช่ผลการแข่งขันจริง" : "ภาพก่อนวิเคราะห์เส้นทาง"}</figcaption>
     </figure>
   );
 }
