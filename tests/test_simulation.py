@@ -4,7 +4,7 @@ import pytest
 from fastapi import HTTPException
 
 from backend.app.schemas import SimulateRequest
-from backend.app.services.simulation import simulate_pass
+from backend.app.services.simulation import _risk_percent_from_margin, simulate_pass
 
 
 def request_with(defender_y: float, ball_speed: float = 18) -> SimulateRequest:
@@ -29,13 +29,20 @@ def request_with(defender_y: float, ball_speed: float = 18) -> SimulateRequest:
 def test_defender_on_path_is_high_risk() -> None:
     result = simulate_pass(request_with(34))
     assert result.risk == "high"
+    assert result.risk_percent >= 75
     assert result.interceptor_id == "p3"
     assert result.pass_distance == 30
+    assert result.interceptors[0].player_id == "p3"
+    assert result.interceptors[0].time_margin <= 0.15
 
 
 def test_distant_defender_is_low_risk() -> None:
     result = simulate_pass(request_with(60))
     assert result.risk == "low"
+    assert result.risk_percent < 25
+    assert result.interceptor_id is None
+    assert result.intercept_point is None
+    assert result.interceptors == []
 
 
 def test_opponent_cannot_be_receiver() -> None:
@@ -48,5 +55,149 @@ def test_opponent_cannot_be_receiver() -> None:
     payload = SimulateRequest.model_validate(source)
     with pytest.raises(HTTPException) as error:
         simulate_pass(payload)
+    assert error.value.status_code == 422
+
+
+def test_receiver_position_comes_from_calibrated_player() -> None:
+    source = request_with(60).model_dump()
+    source["target"]["position"] = {"x": 70, "y": 10}
+    payload = SimulateRequest.model_validate(source)
+
+    result = simulate_pass(payload)
+
+    assert result.pass_distance == 30
+
+
+def test_interceptors_are_sorted_by_time_margin() -> None:
+    source = request_with(34).model_dump()
+    source["players"].append(
+        {"id": "p4", "team_id": "team_b", "position": {"x": 20, "y": 35}}
+    )
+    payload = SimulateRequest.model_validate(source)
+
+    result = simulate_pass(payload)
+
+    assert [item.player_id for item in result.interceptors] == ["p3", "p4"]
+    assert result.interceptors[0].time_margin <= result.interceptors[1].time_margin
+
+
+def test_fast_ball_reduces_risk() -> None:
+    slow = simulate_pass(request_with(40, ball_speed=8))
+    fast = simulate_pass(request_with(40, ball_speed=30))
+
+    assert slow.minimum_margin is not None
+    assert fast.minimum_margin is not None
+    assert fast.minimum_margin > slow.minimum_margin
+    assert fast.risk_percent < slow.risk_percent
+
+
+def test_chip_can_clear_a_defender_on_the_ground_path() -> None:
+    ground = simulate_pass(request_with(34))
+    source = request_with(34).model_dump()
+    source["pass_type"] = "chip"
+    chip = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert chip.pass_type == "chip"
+    assert chip.risk_percent < ground.risk_percent
+    assert chip.interceptors[0].ball_height <= 2.1
+
+
+def test_space_target_supports_chip_pass() -> None:
+    source = request_with(45).model_dump()
+    source["pass_type"] = "chip"
+    source["target"] = {"type": "space", "position": {"x": 55, "y": 25}}
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.pass_type == "chip"
+    assert result.pass_distance > 0
+
+
+def test_long_ball_uses_its_own_speed_and_apex_profile() -> None:
+    source = request_with(60).model_dump()
+    source["pass_type"] = "long_ball"
+    source["parameters"]["long_ball_speed"] = 15.0
+    source["parameters"]["long_ball_apex_height"] = 4.0
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.pass_type == "long_ball"
+    assert result.ball_time == 2.0
+
+
+def test_through_ball_uses_selected_runner_and_lead_point() -> None:
+    source = request_with(60).model_dump()
+    source["target"] = {
+        "type": "through_ball",
+        "receiver_id": "p2",
+        "position": {"x": 55, "y": 34},
+    }
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.receiver_id == "p2"
+    assert result.pass_distance == 45
+    assert result.receiver_arrival_time is not None
+    assert "แทงทะลุช่อง" in result.explanation
+
+
+def test_space_target_selects_fastest_teammate_as_receiver() -> None:
+    source = request_with(55).model_dump()
+    source["players"].append(
+        {"id": "p5", "team_id": "team_a", "position": {"x": 52, "y": 30}}
+    )
+    source["target"] = {"type": "space", "position": {"x": 55, "y": 30}}
+
+    result = simulate_pass(SimulateRequest.model_validate(source))
+
+    assert result.receiver_id == "p5"
+    assert result.receiver_arrival_time is not None
+    assert result.receiver_ball_margin is not None
+    assert result.receiver_arrival_time < result.ball_time
+
+
+def test_nearby_teammate_reduces_defender_interception_advantage() -> None:
+    without_support = request_with(34).model_dump()
+    without_support["target"] = {"type": "space", "position": {"x": 40, "y": 34}}
+    baseline = simulate_pass(SimulateRequest.model_validate(without_support))
+
+    with_support = request_with(34).model_dump()
+    with_support["target"] = {"type": "space", "position": {"x": 40, "y": 34}}
+    with_support["players"].append(
+        {"id": "p5", "team_id": "team_a", "position": {"x": 25, "y": 34}}
+    )
+    supported = simulate_pass(SimulateRequest.model_validate(with_support))
+
+    assert supported.risk_percent < baseline.risk_percent
+    assert supported.interceptors[0].teammate_id == "p5"
+
+
+def test_goalkeeper_has_more_chip_interception_reach() -> None:
+    player_source = request_with(34).model_dump()
+    player_source["pass_type"] = "chip"
+    player_result = simulate_pass(SimulateRequest.model_validate(player_source))
+
+    goalkeeper_source = request_with(34).model_dump()
+    goalkeeper_source["pass_type"] = "chip"
+    goalkeeper_source["players"][2]["class_name"] = "goalkeeper"
+    goalkeeper_result = simulate_pass(SimulateRequest.model_validate(goalkeeper_source))
+
+    assert goalkeeper_result.risk_percent >= player_result.risk_percent
+
+
+def test_risk_percent_matches_existing_risk_thresholds() -> None:
+    assert _risk_percent_from_margin(0.15) == 75
+    assert _risk_percent_from_margin(0.45) == 50
+    assert _risk_percent_from_margin(0.75) == 25
+
+
+def test_unassigned_player_cannot_be_ball_carrier() -> None:
+    source = request_with(34).model_dump()
+    source["players"][0]["team_id"] = "unassigned"
+    payload = SimulateRequest.model_validate(source)
+
+    with pytest.raises(HTTPException) as error:
+        simulate_pass(payload)
+
     assert error.value.status_code == 422
 

@@ -30,7 +30,14 @@ function player(
 
 export const demoAnalysis: DetectResponse = {
   image: { width: 1200, height: 700, fingerprint: "sample-scene" },
-  detector: { model: "sample-fixture.json", mode: "generic" },
+  detector: {
+    model: "sample-fixture.json",
+    mode: "generic",
+    confidence_threshold: 0.15,
+    person_confidence_threshold: 0.50,
+    ball_confidence_threshold: 0.15,
+    iou_threshold: 0.55,
+  },
   detections: [
     player("p1", 255, 285, "team_a"),
     player("p2", 420, 210, "team_a"),

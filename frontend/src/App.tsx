@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { calibrateImage, detectImage, simulatePass } from "./api";
 import { DetectionReview } from "./components/DetectionReview";
+import { FieldMap } from "./components/FieldMap";
 import { PitchWorkspace } from "./components/PitchWorkspace";
 import { RiskResults } from "./components/RiskResults";
 import { StepRail } from "./components/StepRail";
@@ -10,28 +11,114 @@ import type {
   Comparison,
   DetectResponse,
   Detection,
+  PassType,
   Point2D,
   SimulationParameters,
+  SimulationSelection,
+  SimulationTarget,
+  TargetMode,
 } from "./types";
 
 const defaultParameters: SimulationParameters = {
   ball_speed: 18,
+  chip_speed: 14,
+  chip_apex_height: 3,
+  long_ball_speed: 15.8,
+  long_ball_apex_height: 3.8,
   defender_speed: 7,
+  attacker_speed: 7,
   reaction_time: 0.3,
   reach_radius: 1,
   sample_step: 0.5,
 };
 
-const landmarks = [
-  { label: "มุมสนามซ้ายบน", field: { x: 0, y: 0 } },
-  { label: "กึ่งกลางเส้นบน", field: { x: 52.5, y: 0 } },
-  { label: "มุมสนามขวาบน", field: { x: 105, y: 0 } },
-  { label: "กึ่งกลางเส้นซ้าย", field: { x: 0, y: 34 } },
-  { label: "จุดกลางสนาม", field: { x: 52.5, y: 34 } },
-  { label: "กึ่งกลางเส้นขวา", field: { x: 105, y: 34 } },
-  { label: "มุมสนามซ้ายล่าง", field: { x: 0, y: 68 } },
-  { label: "มุมสนามขวาล่าง", field: { x: 105, y: 68 } },
+const landmarkGroups = [
+  {
+    title: "เส้นขอบและเส้นแบ่งครึ่งสนาม",
+    points: [
+      { label: "มุมสนามซ้ายบน", field: { x: 0, y: 0 } },
+      { label: "เส้นบนตรงกลาง", field: { x: 52.5, y: 0 } },
+      { label: "มุมสนามขวาบน", field: { x: 105, y: 0 } },
+      { label: "เส้นแบ่งครึ่งสนามฝั่งซ้าย", field: { x: 0, y: 34 } },
+      { label: "เส้นแบ่งครึ่งสนามฝั่งขวา", field: { x: 105, y: 34 } },
+      { label: "มุมสนามซ้ายล่าง", field: { x: 0, y: 68 } },
+      { label: "เส้นล่างตรงกลาง", field: { x: 52.5, y: 68 } },
+      { label: "มุมสนามขวาล่าง", field: { x: 105, y: 68 } },
+    ],
+  },
+  {
+    title: "วงกลมกลางสนาม",
+    points: [
+      { label: "จุดกลางสนาม", field: { x: 52.5, y: 34 } },
+      { label: "วงกลมกลางสนามด้านบน", field: { x: 52.5, y: 24.85 } },
+      { label: "วงกลมกลางสนามด้านล่าง", field: { x: 52.5, y: 43.15 } },
+      { label: "วงกลมกลางสนามด้านซ้าย", field: { x: 43.35, y: 34 } },
+      { label: "วงกลมกลางสนามด้านขวา", field: { x: 61.65, y: 34 } },
+    ],
+  },
+  {
+    title: "จุดโทษ",
+    points: [
+      { label: "จุดโทษฝั่งซ้าย", field: { x: 11, y: 34 } },
+      { label: "จุดโทษฝั่งขวา", field: { x: 94, y: 34 } },
+    ],
+  },
+  {
+    title: "มุมกรอบเขตโทษ",
+    points: [
+      { label: "กรอบเขตโทษซ้ายบน ด้านเส้นประตู", field: { x: 0, y: 13.84 } },
+      { label: "กรอบเขตโทษซ้ายบน ด้านใน", field: { x: 16.5, y: 13.84 } },
+      { label: "กรอบเขตโทษซ้ายล่าง ด้านเส้นประตู", field: { x: 0, y: 54.16 } },
+      { label: "กรอบเขตโทษซ้ายล่าง ด้านใน", field: { x: 16.5, y: 54.16 } },
+      { label: "กรอบเขตโทษขวาบน ด้านใน", field: { x: 88.5, y: 13.84 } },
+      { label: "กรอบเขตโทษขวาบน ด้านเส้นประตู", field: { x: 105, y: 13.84 } },
+      { label: "กรอบเขตโทษขวาล่าง ด้านใน", field: { x: 88.5, y: 54.16 } },
+      { label: "กรอบเขตโทษขวาล่าง ด้านเส้นประตู", field: { x: 105, y: 54.16 } },
+    ],
+  },
+  {
+    title: "มุมกรอบประตู",
+    points: [
+      { label: "กรอบประตูซ้ายบน ด้านเส้นประตู", field: { x: 0, y: 24.84 } },
+      { label: "กรอบประตูซ้ายบน ด้านใน", field: { x: 5.5, y: 24.84 } },
+      { label: "กรอบประตูซ้ายล่าง ด้านเส้นประตู", field: { x: 0, y: 43.16 } },
+      { label: "กรอบประตูซ้ายล่าง ด้านใน", field: { x: 5.5, y: 43.16 } },
+      { label: "กรอบประตูขวาบน ด้านใน", field: { x: 99.5, y: 24.84 } },
+      { label: "กรอบประตูขวาบน ด้านเส้นประตู", field: { x: 105, y: 24.84 } },
+      { label: "กรอบประตูขวาล่าง ด้านใน", field: { x: 99.5, y: 43.16 } },
+      { label: "กรอบประตูขวาล่าง ด้านเส้นประตู", field: { x: 105, y: 43.16 } },
+    ],
+  },
+  {
+    title: "จุดตัดส่วนโค้งกรอบเขตโทษ",
+    points: [
+      { label: "ส่วนโค้งกรอบเขตโทษซ้ายบน", field: { x: 16.5, y: 26.69 } },
+      { label: "ส่วนโค้งกรอบเขตโทษซ้ายล่าง", field: { x: 16.5, y: 41.31 } },
+      { label: "ส่วนโค้งกรอบเขตโทษขวาบน", field: { x: 88.5, y: 26.69 } },
+      { label: "ส่วนโค้งกรอบเขตโทษขวาล่าง", field: { x: 88.5, y: 41.31 } },
+    ],
+  },
 ] as const;
+
+let nextLandmarkNumber = 1;
+const landmarks = landmarkGroups
+  .flatMap((group) => group.points.map((point) => ({ ...point, group: group.title })))
+  .map((landmark) => {
+    if (landmark.label === "จุดกลางสนาม") return { ...landmark, code: "P12" };
+    if (nextLandmarkNumber === 12) nextLandmarkNumber += 1;
+    return { ...landmark, code: `P${nextLandmarkNumber++}` };
+  });
+
+function calibrationErrorLevel(error: number | null) {
+  if (error === null) return null;
+  if (error <= 0.75) return { label: "ดี", className: "good" };
+  if (error <= 2) return { label: "ควรตรวจซ้ำ", className: "warning" };
+  return { label: "สูงเกินเกณฑ์", className: "danger" };
+}
+
+function hasCalibrationPair(pair: CalibrationPair, landmark: (typeof landmarks)[number]) {
+  return pair.label.startsWith(`${landmark.code}:`);
+}
 
 function applyHomography(point: Point2D, matrix: number[][]): Point2D | null {
   const denominator = matrix[2][0] * point.x + matrix[2][1] * point.y + matrix[2][2];
@@ -58,7 +145,7 @@ function suggestCarrier(detections: Detection[]): string | null {
   const players = detections.filter(
     (item) => item.class_name === "player" || item.class_name === "goalkeeper",
   );
-  if (!ball || players.length === 0) return players[0]?.id ?? null;
+  if (!ball || players.length === 0) return null;
   let best: Detection | null = null;
   let bestDistance = Number.POSITIVE_INFINITY;
   for (const player of players) {
@@ -80,6 +167,8 @@ function cloneDemo(): DetectResponse {
 
 function App() {
   const fileInput = useRef<HTMLInputElement>(null);
+  const simulationRequest = useRef<AbortController | null>(null);
+  const simulationSelection = useRef<SimulationSelection | null>(null);
   const [step, setStep] = useState(1);
   const [maxStep, setMaxStep] = useState(1);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -96,9 +185,12 @@ function App() {
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [activeComparisonId, setActiveComparisonId] = useState<string | null>(null);
   const [parameters, setParameters] = useState<SimulationParameters>(defaultParameters);
+  const [passType, setPassType] = useState<PassType>("ground");
+  const [targetMode, setTargetMode] = useState<TargetMode>("receiver");
+  const [runnerId, setRunnerId] = useState<string | null>(null);
 
   const activeComparison = useMemo(
-    () => comparisons.find((item) => item.id === activeComparisonId) ?? comparisons.at(-1) ?? null,
+    () => comparisons.find((item) => item.id === activeComparisonId) ?? null,
     [activeComparisonId, comparisons],
   );
   const candidate = useMemo(
@@ -106,7 +198,23 @@ function App() {
     [analysis, candidateCarrierId],
   );
 
+  useEffect(() => () => {
+    simulationRequest.current?.abort();
+    simulationRequest.current = null;
+  }, []);
+
+  function cancelSimulation() {
+    if (simulationRequest.current) {
+      simulationRequest.current.abort();
+      simulationRequest.current = null;
+      setBusy(false);
+    }
+    simulationSelection.current = null;
+    setActiveComparisonId(null);
+  }
+
   function resetAnalysis(nextImageUrl: string | null = null) {
+    cancelSimulation();
     if (imageUrl?.startsWith("blob:")) URL.revokeObjectURL(imageUrl);
     setImageUrl(nextImageUrl);
     setAnalysis(null);
@@ -119,6 +227,9 @@ function App() {
     setCandidateCarrierId(null);
     setCarrierId(null);
     setComparisons([]);
+    setPassType("ground");
+    setTargetMode("receiver");
+    setRunnerId(null);
     setActiveComparisonId(null);
     setError(null);
     setNotice(null);
@@ -155,6 +266,7 @@ function App() {
   }
 
   function updateDetection(id: string, patch: Partial<Detection>) {
+    cancelSimulation();
     setAnalysis((current) =>
       current
         ? {
@@ -178,13 +290,17 @@ function App() {
   }
 
   function removeDetection(id: string) {
+    cancelSimulation();
     setAnalysis((current) =>
       current
         ? { ...current, detections: current.detections.filter((item) => item.id !== id) }
         : current,
     );
     setCarrierId(null);
+    setCandidateCarrierId(null);
+    setRunnerId(null);
     setComparisons([]);
+    setActiveComparisonId(null);
     setMaxStep((current) => Math.min(current, 4));
   }
 
@@ -211,32 +327,52 @@ function App() {
 
   function handleCanvasClick(point: Point2D) {
     if (step === 3 && manualMode) {
+      if (busy) return;
       if (!pendingLandmark) {
         setError("เลือกชื่อจุดอ้างอิงก่อน แล้วจึงคลิกตำแหน่งเดียวกันบนภาพ");
         return;
       }
       setCalibrationPairs((current) => [
-        ...current.filter((pair) => pair.label !== pendingLandmark.label),
-        { label: pendingLandmark.label, image: point, field: pendingLandmark.field },
+        ...current.filter((pair) => !hasCalibrationPair(pair, pendingLandmark)),
+        { label: `${pendingLandmark.code}: ${pendingLandmark.label}`, image: point, field: pendingLandmark.field },
       ]);
-      setNotice(`บันทึกจุด “${pendingLandmark.label}” แล้ว`);
+      setNotice(`บันทึก ${pendingLandmark.code} · ${pendingLandmark.label} แล้ว`);
       setPendingLandmark(null);
       setError(null);
       return;
     }
 
     if (step === 5 && carrierId && analysis?.calibration.matrix) {
+      if (targetMode === "receiver") {
+        setNotice("เลือกโหมดพื้นที่ว่างหรือแทงทะลุช่องก่อนคลิกบนสนาม");
+        return;
+      }
+      if (targetMode === "through_ball" && !runnerId) {
+        setError("เลือกเพื่อนร่วมทีมที่จะวิ่งรับบอลก่อน แล้วคลิกจุดว่างข้างหน้า");
+        return;
+      }
       const fieldPoint = applyHomography(point, analysis.calibration.matrix);
       if (!fieldPoint || fieldPoint.x < 0 || fieldPoint.x > 105 || fieldPoint.y < 0 || fieldPoint.y > 68) {
         setError("จุดที่เลือกอยู่นอกขอบเขตสนามหลัง Calibration");
         return;
       }
+      const targetLabel = `${targetMode === "through_ball" ? `แทงให้ ${runnerId} ไปที่` : "พื้นที่ว่าง"} ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`;
       void runSimulation(
-        { type: "space", position: fieldPoint },
+        targetMode === "through_ball"
+          ? { type: "through_ball", receiver_id: runnerId!, position: fieldPoint }
+          : { type: "space", position: fieldPoint },
         point,
-        `พื้นที่ว่าง ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`,
+        targetLabel,
       );
     }
+  }
+
+  function removeCalibrationPoints(label?: string) {
+    if (busy) return;
+    setCalibrationPairs((current) => label ? current.filter((pair) => pair.label !== label) : []);
+    setPendingLandmark((current) => !label || current?.code === label.split(":")[0] ? null : current);
+    setError(null);
+    setNotice(label ? `ลบจุด “${label}” แล้ว สามารถเลือกใหม่ได้` : "ล้างจุดอ้างอิงทั้งหมดแล้ว");
   }
 
   async function submitManualCalibration() {
@@ -244,6 +380,8 @@ function App() {
       setError("ต้องเลือกจุดอ้างอิงอย่างน้อย 4 จุด");
       return;
     }
+    cancelSimulation();
+    setComparisons([]);
     setBusy(true);
     setError(null);
     try {
@@ -272,7 +410,9 @@ function App() {
     setStep(4);
     setMaxStep((current) => Math.max(current, 4));
     setError(null);
-    setNotice(suggestion ? `AI แนะนำ ${suggestion} เป็น Ball Carrier กรุณาตรวจและยืนยัน` : null);
+    setNotice(suggestion
+      ? `AI แนะนำ ${suggestion} เป็น Ball Carrier กรุณาตรวจและยืนยัน`
+      : "ไม่สามารถแนะนำคนครองบอลได้ กรุณาคลิกเลือกผู้เล่นบนภาพ");
   }
 
   function confirmCarrier() {
@@ -284,7 +424,10 @@ function App() {
       setError("ผู้เล่นที่เลือกต้องมี Team ID และพิกัดสนามที่ผ่าน Calibration");
       return;
     }
+    cancelSimulation();
+    if (carrierId !== candidate.id) setComparisons([]);
     setCarrierId(candidate.id);
+    setRunnerId(null);
     setStep(5);
     setMaxStep(5);
     setError(null);
@@ -292,20 +435,31 @@ function App() {
   }
 
   async function runSimulation(
-    target: { type: "receiver" | "space"; position: Point2D; receiver_id?: string },
+    target: SimulationTarget,
     targetPixel: Point2D,
     targetLabel: string,
+    nextPassType: PassType = passType,
+    nextParameters: SimulationParameters = parameters,
   ) {
     if (!analysis || !carrierId) return;
+    simulationRequest.current?.abort();
+    const request = new AbortController();
+    simulationRequest.current = request;
+    simulationSelection.current = { target, targetPixel, targetLabel };
+    setActiveComparisonId(null);
     setBusy(true);
     setError(null);
+    setNotice(`กำลังคำนวณ ${targetLabel} · ${nextPassType.toUpperCase()}…`);
     try {
       const result = await simulatePass({
         detections: analysis.detections,
         carrierId,
+        passType: nextPassType,
         target,
-        parameters,
+        parameters: nextParameters,
+        signal: request.signal,
       });
+      if (request.signal.aborted || simulationRequest.current !== request) return;
       let interceptPixel: Point2D | null = null;
       if (result.intercept_point && analysis.calibration.matrix) {
         const inverse = invertMatrix3(analysis.calibration.matrix);
@@ -313,19 +467,79 @@ function App() {
       }
       const comparison: Comparison = {
         id: crypto.randomUUID(),
+        target,
         targetLabel,
         targetPixel,
+        parameters: { ...nextParameters },
         interceptPixel,
         result,
       };
       setComparisons((current) => [...current.slice(-2), comparison]);
       setActiveComparisonId(comparison.id);
-      setNotice(`คำนวณ ${targetLabel} แล้ว — Pass Risk: ${result.risk.toUpperCase()}`);
+      setNotice(`คำนวณ ${targetLabel} แล้ว — ความเสี่ยงถูกตัดบอล ${result.risk_percent}%`);
     } catch (caught) {
+      if (request.signal.aborted || simulationRequest.current !== request) return;
       setError(caught instanceof Error ? caught.message : "คำนวณ Simulation ไม่สำเร็จ");
+      setNotice(null);
     } finally {
-      setBusy(false);
+      if (simulationRequest.current === request) {
+        simulationRequest.current = null;
+        setBusy(false);
+      }
     }
+  }
+
+  function changePassType(nextPassType: PassType) {
+    if (nextPassType === passType) return;
+    setPassType(nextPassType);
+    setError(null);
+    const selection = simulationSelection.current;
+    if (selection) {
+      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, nextPassType);
+    }
+  }
+
+  function changeTargetMode(nextMode: TargetMode) {
+    if (nextMode === targetMode) return;
+    cancelSimulation();
+    setTargetMode(nextMode);
+    setRunnerId(null);
+    setError(null);
+    setNotice(nextMode === "receiver"
+      ? "เลือกผู้รับบอลในทีมเพื่อคำนวณใหม่"
+      : nextMode === "space"
+        ? "คลิกพื้นที่ว่างบนภาพเพื่อคำนวณใหม่"
+        : "เลือกเพื่อนที่จะวิ่งรับบอล แล้วคลิกจุดว่างข้างหน้าเพื่อคำนวณใหม่");
+  }
+
+  function changeRunner(id: string) {
+    if (id === runnerId) return;
+    cancelSimulation();
+    setRunnerId(id);
+    setError(null);
+    setNotice(`เลือก ${id} เป็นผู้วิ่งแล้ว คลิกจุดว่างข้างหน้าเพื่อคำนวณใหม่`);
+  }
+
+  function changeParameters(nextParameters: SimulationParameters) {
+    setParameters(nextParameters);
+    const selection = simulationSelection.current;
+    if (selection) {
+      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, passType, nextParameters);
+    }
+  }
+
+  function selectComparison(id: string) {
+    const comparison = comparisons.find((item) => item.id === id);
+    if (!comparison) return;
+    cancelSimulation();
+    simulationSelection.current = comparison;
+    setPassType(comparison.result.pass_type);
+    setTargetMode(comparison.target.type);
+    setRunnerId(comparison.target.type === "through_ball" ? comparison.target.receiver_id ?? null : null);
+    setParameters({ ...comparison.parameters });
+    setActiveComparisonId(id);
+    setError(null);
+    setNotice(`แสดงผล ${comparison.targetLabel} · ${comparison.result.pass_type.toUpperCase()}`);
   }
 
   function handleDetectionClick(detection: Detection) {
@@ -336,6 +550,12 @@ function App() {
       return;
     }
     if (step !== 5 || !analysis || !carrierId) return;
+    if (targetMode !== "receiver") {
+      setNotice(targetMode === "through_ball"
+        ? "โหมดแทงทะลุช่องทำงานอยู่ — เลือกผู้วิ่งแล้วคลิกจุดว่างข้างหน้า"
+        : "โหมดพื้นที่ว่างทำงานอยู่ — คลิกตำแหน่งว่างบนสนาม");
+      return;
+    }
     if (detection.id === carrierId) {
       setError("Ball Carrier ไม่สามารถส่งบอลให้ตัวเอง");
       return;
@@ -363,6 +583,7 @@ function App() {
     : analysis
       ? `${analysis.detector.model} · ${analysis.detector.mode === "fine_tuned" ? "Fine-tuned" : isFixture ? "Sample fixture" : "Generic"}`
       : "พร้อมเริ่มวิเคราะห์";
+  const errorLevel = calibrationErrorLevel(analysis?.calibration.reprojection_error ?? null);
 
   return (
     <div className="app-shell">
@@ -386,7 +607,10 @@ function App() {
           </p>
         </section>
 
-        <StepRail current={step} maxStep={maxStep} onStep={setStep} />
+        <StepRail current={step} maxStep={maxStep} onStep={(nextStep) => {
+          if (step === 5 && nextStep !== 5) cancelSimulation();
+          setStep(nextStep);
+        }} />
 
         {error ? <div className="alert error-alert" role="alert"><strong>ตรวจสอบอีกครั้ง</strong>{error}</div> : null}
         {notice ? <div className="alert notice-alert" role="status">{notice}</div> : null}
@@ -404,9 +628,17 @@ function App() {
               calibrationPairs={calibrationPairs}
               targetPixel={activeComparison?.targetPixel ?? null}
               interceptPixel={activeComparison?.interceptPixel ?? null}
+              passType={activeComparison?.result.pass_type ?? passType}
               onDetectionClick={handleDetectionClick}
               onCanvasClick={handleCanvasClick}
             />
+            {analysis && step >= 3 && analysis.calibration.status === "success" ? (
+              <FieldMap
+                detections={analysis.detections}
+                carrierId={carrierId}
+                candidateCarrierId={candidateCarrierId}
+              />
+            ) : null}
             <div className="legend">
               <span><i className="dot team-a" />Team A</span>
               <span><i className="dot team-b" />Team B</span>
@@ -448,7 +680,7 @@ function App() {
                 <span className="panel-number">02</span>
                 <span className="eyebrow">VERIFY BEFORE ANALYSIS</span>
                 <h2>ตรวจผู้เล่นและทีม</h2>
-                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
+                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด และลบลูกบอลที่ตรวจจับเกินมาได้ ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
                 <DetectionReview detections={analysis.detections} onUpdate={updateDetection} onRemove={removeDetection} />
                 <button className="primary-button" type="button" onClick={continueToCalibration}>
                   ยืนยันผู้เล่นและทีม <span>→</span>
@@ -464,8 +696,11 @@ function App() {
                 <div className={`calibration-card ${analysis.calibration.status}`}>
                   <div><strong>{analysis.calibration.method.toUpperCase()}</strong><span>{Math.round(analysis.calibration.confidence * 100)}%</span></div>
                   <p>{analysis.calibration.message}</p>
-                  {analysis.calibration.reprojection_error !== null ? (
-                    <small>Reprojection error: {analysis.calibration.reprojection_error.toFixed(2)}</small>
+                  {analysis.calibration.reprojection_error !== null && errorLevel ? (
+                    <div className={`reprojection-status ${errorLevel.className}`}>
+                      <span>Reprojection error</span>
+                      <strong>{analysis.calibration.reprojection_error.toFixed(2)} m · {errorLevel.label}</strong>
+                    </div>
                   ) : null}
                 </div>
                 {!manualMode && analysis.calibration.status === "success" ? (
@@ -479,19 +714,127 @@ function App() {
                   </>
                 ) : (
                   <div className="manual-calibration">
-                    <p><strong>เลือกชื่อ Landmark แล้วคลิกจุดเดียวกันบนภาพ</strong></p>
-                    <div className="landmark-grid">
-                      {landmarks.map((landmark) => {
-                        const completed = calibrationPairs.some((pair) => pair.label === landmark.label);
-                        return (
+                    <p><strong>ภาพไม่จำเป็นต้องเห็นทั้งสนาม</strong> เลือกจุดที่มองเห็นชัดอย่างน้อย 4 จุด กระจายกัน และไม่อยู่แนวเดียวกัน แล้วคลิกจุดเดียวกันบนภาพใหญ่</p>
+                    <div className="landmark-guide" aria-label="แผนผังตำแหน่งจุดอ้างอิงบนสนาม">
+                      <div className="landmark-guide-heading">
+                        <span>แผนผังสนามอ้างอิง</span>
+                        <small>{landmarks.length} จุดอ้างอิง · P12 คือจุดกลางสนาม</small>
+                      </div>
+                      <div className="mini-pitch">
+                        <span className="mini-pitch-halfway" />
+                        <span className="mini-pitch-circle" />
+                        <span className="mini-pitch-box mini-pitch-box-left" />
+                        <span className="mini-pitch-box mini-pitch-box-right" />
+                        {landmarks.map((landmark) => {
+                          const completed = calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark));
+                          const pending = pendingLandmark?.label === landmark.label;
+                          return (
+                            <button
+                              type="button"
+                              key={`pitch-${landmark.label}`}
+                              className={`${pending ? "pending" : ""} ${completed ? "completed" : ""}`}
+                              style={{
+                                left: `${(landmark.field.x / 105) * 100}%`,
+                                top: `${(landmark.field.y / 68) * 100}%`,
+                              }}
+                              title={landmark.label}
+                              disabled={busy}
+                              aria-label={`${landmark.code}: ${landmark.label}${completed ? " เลือกแล้ว" : ""}`}
+                              aria-pressed={pending}
+                              onClick={() => setPendingLandmark(landmark)}
+                            >
+                              {completed ? "✓" : landmark.code}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className={`landmark-instruction ${pendingLandmark ? "active" : ""}`}>
+                        {pendingLandmark
+                          ? `เลือก ${pendingLandmark.code}: ${pendingLandmark.label} แล้ว — คลิกตำแหน่งเดียวกันบนภาพใหญ่`
+                          : "กดหมายเลขที่มองเห็นชัดในภาพ แล้วไปคลิกตำแหน่งเดียวกันบนภาพใหญ่"}
+                      </p>
+                      <div className="calibration-example">
+                        <strong>ตัวอย่างการวางจุด</strong>
+                        <span>✓ วางทับจุดตัดของเส้นจริง</span>
+                        <span>× อย่าวางบนตัวผู้เล่น เงา หรือพื้นที่หญ้าใกล้เคียง</span>
+                        <small>เลือกจุดที่กระจายรอบพื้นที่ภาพ ช่วยลดอาการ Marker กระโดดจาก Homography ที่ไม่เสถียร</small>
+                      </div>
+                      {pendingLandmark ? (
+                        <button
+                          className="text-button"
+                          type="button"
+                          disabled={busy}
+                          onClick={() => {
+                            setPendingLandmark(null);
+                            setError(null);
+                          }}
+                        >
+                          ยกเลิกการเลือกจุดนี้
+                        </button>
+                      ) : null}
+                    </div>
+                    {calibrationPairs.length > 0 ? (
+                      <section className="calibration-points" aria-label="จุดอ้างอิงที่เลือกแล้ว">
+                        <div className="calibration-points-heading">
+                          <h3>จุดที่เลือก ({calibrationPairs.length})</h3>
                           <button
+                            className="text-button danger"
                             type="button"
-                            key={landmark.label}
-                            className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
-                            onClick={() => setPendingLandmark(landmark)}
+                            disabled={busy}
+                            onClick={() => removeCalibrationPoints()}
                           >
-                            {completed ? "✓ " : ""}{landmark.label}
+                            ล้างทั้งหมด
                           </button>
+                        </div>
+                        <ol>
+                          {calibrationPairs.map((pair) => (
+                            <li key={pair.label}>
+                              <span className="calibration-point-index">{pair.label.split(":")[0]}</span>
+                              <span>{pair.label.slice(pair.label.indexOf(":") + 1).trim()}</span>
+                              <button
+                                className="text-button danger"
+                                type="button"
+                                disabled={busy}
+                                aria-label={`ลบจุด ${pair.label}`}
+                                onClick={() => removeCalibrationPoints(pair.label)}
+                              >
+                                ลบ
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      </section>
+                    ) : null}
+                    <div className="landmark-categories">
+                      {landmarkGroups.map((group) => {
+                        const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
+                        const selectedCount = groupLandmarks.filter((landmark) =>
+                          calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark)),
+                        ).length;
+                        return (
+                          <details className="landmark-category" key={group.title} open={group.title === "วงกลมกลางสนาม"}>
+                            <summary>
+                              <span>{group.title}</span>
+                              <small>{selectedCount}/{groupLandmarks.length}</small>
+                            </summary>
+                            <div className="landmark-grid">
+                              {groupLandmarks.map((landmark) => {
+                                const completed = calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark));
+                                return (
+                                  <button
+                                    type="button"
+                                    key={landmark.label}
+                                    className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
+                                    aria-pressed={pendingLandmark?.label === landmark.label}
+                                    disabled={busy}
+                                    onClick={() => setPendingLandmark(landmark)}
+                                  >
+                                    <span>{completed ? "✓" : landmark.code}</span>{landmark.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </details>
                         );
                       })}
                     </div>
@@ -519,7 +862,9 @@ function App() {
                 <span className="panel-number">04</span>
                 <span className="eyebrow">LOCK THE ORIGIN</span>
                 <h2>ยืนยันคนครองบอล</h2>
-                <p>ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง</p>
+                <p>{analysis.detections.some((item) => item.class_name === "ball")
+                  ? "ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง"
+                  : "ไม่มีลูกบอลที่ตรวจพบ กรุณาคลิกกรอบผู้เล่นบนภาพเพื่อเลือกคนครองบอลด้วยตนเอง"}</p>
                 <div className="carrier-choice">
                   <span>ผู้เล่นที่เลือก</span>
                   <strong>{candidate?.id ?? "ยังไม่ได้เลือก"}</strong>
@@ -536,34 +881,75 @@ function App() {
                 <span className="panel-number">05</span>
                 <span className="eyebrow">COMPARE PASS OPTIONS</span>
                 <h2>เลือกเป้าหมาย</h2>
-                <p>คลิกเพื่อนร่วมทีมเพื่อส่งให้ผู้รับ หรือคลิกพื้นที่ว่างบนสนาม ผลใหม่จะไม่รัน Detection ซ้ำ</p>
+                <p>เลือกผู้รับหรือจุดบนสนาม แล้วเปลี่ยนรูปแบบการจ่ายเพื่อคำนวณเป้าหมายเดิมใหม่ได้ทันที โดยไม่รัน Detection ซ้ำ</p>
                 <div className="locked-carrier"><span>Ball Carrier</span><strong>{carrierId}</strong><i>LOCKED</i></div>
-                <div className="receiver-shortcuts" aria-label="รายชื่อผู้รับบอลในทีม">
-                  <span>เลือกผู้รับในทีม</span>
-                  <div>
-                    {analysis.detections
-                      .filter((item) => {
-                        const carrier = analysis.detections.find((candidate) => candidate.id === carrierId);
-                        return (
-                          item.id !== carrierId &&
-                          item.team_id === carrier?.team_id &&
-                          item.field_position !== null &&
-                          (item.class_name === "player" || item.class_name === "goalkeeper")
-                        );
-                      })
-                      .map((receiver) => (
-                        <button type="button" key={receiver.id} onClick={() => handleDetectionClick(receiver)}>
-                          {receiver.id}
-                        </button>
-                      ))}
+                <div className="simulation-choices">
+                  <span>รูปแบบการจ่าย</span>
+                  <div className="segmented-control" role="group" aria-label="รูปแบบการจ่ายบอล">
+                    <button type="button" aria-pressed={passType === "ground"} onClick={() => changePassType("ground")}>
+                      <strong>GROUND</strong><small>ลูกเรียด</small>
+                    </button>
+                    <button type="button" aria-pressed={passType === "chip"} onClick={() => changePassType("chip")}>
+                      <strong>CHIP</strong><small>ลูกชิพ</small>
+                    </button>
+                    <button type="button" aria-pressed={passType === "long_ball"} onClick={() => changePassType("long_ball")}>
+                      <strong>LONG</strong><small>เปิดยาว</small>
+                    </button>
+                  </div>
+                  <span>ประเภทเป้าหมาย</span>
+                  <div className="segmented-control" role="group" aria-label="ประเภทเป้าหมาย">
+                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => changeTargetMode("receiver")}>
+                      <strong>PLAYER</strong><small>ส่งให้เพื่อน</small>
+                    </button>
+                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => changeTargetMode("space")}>
+                      <strong>SPACE</strong><small>จ่ายเข้าที่ว่าง</small>
+                    </button>
+                    <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => changeTargetMode("through_ball")}>
+                      <strong>THROUGH</strong><small>แทงทะลุช่อง</small>
+                    </button>
                   </div>
                 </div>
+                {targetMode !== "space" ? (
+                  <div className="receiver-shortcuts" aria-label="รายชื่อผู้รับบอลในทีม">
+                    <span>{targetMode === "through_ball" ? "เลือกเพื่อนที่จะวิ่งรับบอล" : "เลือกผู้รับในทีม"}</span>
+                    <div>
+                      {analysis.detections
+                        .filter((item) => {
+                          const carrier = analysis.detections.find((candidate) => candidate.id === carrierId);
+                          return (
+                            item.id !== carrierId &&
+                            item.team_id === carrier?.team_id &&
+                            item.field_position !== null &&
+                            (item.class_name === "player" || item.class_name === "goalkeeper")
+                          );
+                        })
+                        .map((receiver) => (
+                          <button
+                            type="button"
+                            key={receiver.id}
+                            aria-pressed={targetMode === "through_ball" ? runnerId === receiver.id : undefined}
+                            onClick={() => targetMode === "through_ball" ? changeRunner(receiver.id) : handleDetectionClick(receiver)}
+                          >
+                            {receiver.id}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                ) : <p className="space-hint">คลิกพื้นที่ว่างบนภาพเพื่อกำหนดจุดตกของบอล</p>}
+                {targetMode === "through_ball" ? (
+                  <p className="space-hint">เลือกจุดข้างหน้าผู้วิ่งบนภาพ ระบบสมมติว่าผู้เล่นวิ่งตรงไปยังจุดนี้ ไม่ได้เดาทิศทางจากภาพนิ่ง</p>
+                ) : null}
                 <details className="advanced-panel">
                   <summary>Advanced Settings</summary>
                   <div className="field-grid">
                     {([
                       ["ball_speed", "Ball speed", "m/s", 1, 60, 0.5],
+                      ["chip_speed", "Chip speed", "m/s", 1, 40, 0.5],
+                      ["chip_apex_height", "Chip apex", "m", 1, 8, 0.25],
+                      ["long_ball_speed", "Long ball speed*", "m/s", 1, 40, 0.5],
+                      ["long_ball_apex_height", "Long ball apex*", "m", 1, 10, 0.25],
                       ["defender_speed", "Defender speed", "m/s", 1, 15, 0.5],
+                      ["attacker_speed", "Attacker speed", "m/s", 1, 15, 0.5],
                       ["reaction_time", "Reaction time", "s", 0, 3, 0.1],
                       ["reach_radius", "Reach radius", "m", 0, 3, 0.1],
                     ] as const).map(([key, label, unit, min, max, increment]) => (
@@ -575,30 +961,42 @@ function App() {
                           max={max}
                           step={increment}
                           value={parameters[key]}
-                          onChange={(event) => setParameters((current) => ({ ...current, [key]: Number(event.target.value) }))}
+                          onChange={(event) => changeParameters({ ...parameters, [key]: Number(event.target.value) })}
                         /><small>{unit}</small></div>
                       </label>
                     ))}
                   </div>
-                  <button className="text-button" type="button" onClick={() => setParameters(defaultParameters)}>คืนค่าเริ่มต้น</button>
+                  <button className="text-button" type="button" onClick={() => changeParameters(defaultParameters)}>คืนค่าเริ่มต้น</button>
+                  <small className="model-note">* ค่าเปิดยาวเป็นค่าทดลองจากงานศึกษาหนึ่งชุด ไม่ใช่ค่ามาตรฐานสากล</small>
                 </details>
                 {activeComparison ? (
                   <div className={`active-risk risk-${activeComparison.result.risk}`}>
-                    <span>LATEST RESULT</span>
-                    <strong>{activeComparison.result.risk.toUpperCase()}</strong>
+                    <span>ผลลัพธ์ที่เลือก · {activeComparison.result.pass_type.toUpperCase()}</span>
+                    <strong>{activeComparison.result.risk_percent}%</strong>
+                    <p>ระดับ {activeComparison.result.risk.toUpperCase()}</p>
                     <p>{activeComparison.result.explanation}</p>
                     <details>
                       <summary>ดูรายละเอียดการคำนวณ</summary>
                       <dl>
                         <div><dt>ระยะจ่าย</dt><dd>{activeComparison.result.pass_distance.toFixed(2)} m</dd></div>
+                        <div><dt>รูปแบบ</dt><dd>{activeComparison.result.pass_type.toUpperCase()}</dd></div>
                         <div><dt>เวลาบอล</dt><dd>{activeComparison.result.ball_time.toFixed(3)} s</dd></div>
                         <div><dt>ผู้สกัด</dt><dd>{activeComparison.result.interceptor_id ?? "ไม่มี"}</dd></div>
+                        <div><dt>ผู้รับที่เร็วที่สุด</dt><dd>{activeComparison.result.receiver_id ?? "ไม่มี"}</dd></div>
+                        <div><dt>เวลาผู้รับถึงจุด</dt><dd>{activeComparison.result.receiver_arrival_time?.toFixed(3) ?? "—"} s</dd></div>
+                        <div><dt>ผู้รับเทียบกับบอล</dt><dd>{activeComparison.result.receiver_ball_margin?.toFixed(3) ?? "—"} s</dd></div>
                         <div><dt>Time margin</dt><dd>{activeComparison.result.minimum_margin?.toFixed(3) ?? "—"} s</dd></div>
                       </dl>
                       <p>{activeComparison.result.disclaimer}</p>
                     </details>
                   </div>
-                ) : null}
+                ) : <p className="space-hint" role="status">{busy
+                  ? "กำลังคำนวณผลใหม่…"
+                  : targetMode === "receiver"
+                    ? "เลือกผู้รับบอลเพื่อแสดงผล"
+                    : targetMode === "space"
+                      ? "เลือกจุดเป้าหมายบนสนามเพื่อแสดงผล"
+                      : "เลือกผู้วิ่งและจุดเป้าหมายบนสนามเพื่อแสดงผล"}</p>}
               </div>
             ) : null}
           </aside>
@@ -608,10 +1006,11 @@ function App() {
           <RiskResults
             comparisons={comparisons}
             activeId={activeComparison?.id ?? null}
-            onSelect={setActiveComparisonId}
+            onSelect={selectComparison}
             onClear={() => {
+              cancelSimulation();
               setComparisons([]);
-              setActiveComparisonId(null);
+              setNotice("ล้างผลแล้ว เลือกเป้าหมายเพื่อคำนวณใหม่");
             }}
           />
         ) : null}
@@ -625,7 +1024,7 @@ function App() {
 
       <footer>
         <strong>TactiVision MVP</strong>
-        <p>ผลลัพธ์เป็นการจำลองจากสมมติฐาน ไม่ใช่เปอร์เซ็นต์การจ่ายบอลสำเร็จจริง</p>
+        <p>เปอร์เซ็นต์เป็นดัชนีความเสี่ยงจากแบบจำลอง ไม่ใช่ความน่าจะเป็นจากข้อมูลการแข่งขันจริง</p>
       </footer>
     </div>
   );

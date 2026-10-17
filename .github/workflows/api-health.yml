@@ -1,0 +1,25 @@
+name: Backend / production health
+
+on:
+  schedule:
+    - cron: "23 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-api-health
+  cancel-in-progress: true
+
+jobs:
+  smoke-test:
+    name: Azure backend smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Check health and simulation endpoints
+        env:
+          API_BASE_URL: ${{ vars.AZURE_API_URL || 'https://tactivision-api.bravesea-5e18ac68.eastasia.azurecontainerapps.io' }}
+        run: python scripts/check_api_health.py "$API_BASE_URL"

@@ -1,0 +1,78 @@
+{
+  "status": "research_reference_not_active",
+  "units": "m/s",
+  "model_warning": "Current simulation uses constant horizontal speed. Launch-speed and 3D chip-speed observations are not interchangeable with it.",
+  "proposed_profiles": [
+    {
+      "id": "controlled_ground",
+      "label": "Controlled ground pass",
+      "central_speed": 12.5,
+      "research_range": [11.0, 14.0],
+      "ready_for_constant_speed_model": true,
+      "sources": ["forcher_2021", "russell_2011"]
+    },
+    {
+      "id": "fast_ground",
+      "label": "Fast or driven ground pass",
+      "central_speed": 16.0,
+      "research_range": [15.0, 17.0],
+      "ready_for_constant_speed_model": true,
+      "sources": ["forcher_2021"]
+    },
+    {
+      "id": "chip_launch",
+      "label": "Chip launch speed",
+      "central_speed": 18.0,
+      "research_range": [16.0, 20.0],
+      "ready_for_constant_speed_model": false,
+      "sources": ["mclean_tumilty_1993"]
+    },
+    {
+      "id": "long_aerial_experimental",
+      "label": "Long aerial experimental",
+      "central_speed": 15.8,
+      "research_range": [15.69, 15.9],
+      "apex_height": 3.8,
+      "ready_for_constant_speed_model": false,
+      "sources": ["ashidiq_2024"]
+    }
+  ],
+  "sources": {
+    "forcher_2021": {
+      "doi": "10.3390/e23121607",
+      "sample": "258 Dutch Eredivisie matches, 13,094 attacks",
+      "observations": {
+        "mean_pass_velocity": [11.67, 11.87],
+        "mean_max_pass_velocity": [15.36, 15.42],
+        "first_pass_velocity": [15.55, 16.41]
+      }
+    },
+    "russell_2011": {
+      "doi": "10.1123/ijspp.6.2.221",
+      "sample": "15 academy soccer players in a match simulation",
+      "observations": {
+        "first_half_pass_speed_mean": 13.0,
+        "second_half_pass_speed_mean": 12.2,
+        "standard_error": 0.5
+      }
+    },
+    "mclean_tumilty_1993": {
+      "doi": "10.1136/bjsm.27.4.260",
+      "sample": "12 elite junior soccer players",
+      "observations": {
+        "right_chip_speed": 18.33,
+        "left_chip_speed": 17.78,
+        "converted_from": "66 and 64 km/h"
+      }
+    },
+    "ashidiq_2024": {
+      "url": "https://www.riped-online.com/articles/the-difference-of-the-effects-of-regular-strength-and-core-strength-training-programs-on-the-biomechanics-of-football-long-pass-ju-108054.html",
+      "observations": {
+        "long_pass_speed_range": [15.69, 15.9],
+        "apex_height_range": [3.76, 3.87],
+        "distance_range": [23.17, 23.53]
+      }
+    }
+  }
+}
+

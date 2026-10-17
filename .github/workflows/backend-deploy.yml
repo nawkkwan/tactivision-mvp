@@ -1,0 +1,108 @@
+name: Backend / Azure deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "scripts/deploy_azure.ps1"
+      - ".github/workflows/backend-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: backend-production
+  cancel-in-progress: false
+
+# These values identify Azure resources; authentication uses the branch-scoped
+# OIDC trust configured in Azure, so no long-lived Azure password is stored.
+env:
+  AZURE_CLIENT_ID: 33b28e2f-684d-409a-aa3d-83231b86c817
+  AZURE_TENANT_ID: 3ed380e0-0a07-4be1-b246-1a050a892c7a
+  AZURE_SUBSCRIPTION_ID: deb79528-704b-42e7-8cfc-6358933efb9f
+  AZURE_RESOURCE_GROUP: rg-tactivision-eastasia
+  AZURE_CONTAINER_APP: tactivision-api
+  AZURE_CONTAINER_REGISTRY: ca9c51f264a5acr
+  AZURE_IMAGE_REPOSITORY: tactivision-api
+  API_BASE_URL: https://tactivision-api.bravesea-5e18ac68.eastasia.azurecontainerapps.io
+
+jobs:
+  deploy:
+    name: Build and deploy Azure backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: production
+      url: https://tactivision-api.bravesea-5e18ac68.eastasia.azurecontainerapps.io/docs
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Azure with GitHub OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ env.AZURE_CLIENT_ID }}
+          tenant-id: ${{ env.AZURE_TENANT_ID }}
+          subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push commit image
+        id: image
+        shell: bash
+        run: |
+          image="${AZURE_CONTAINER_REGISTRY}.azurecr.io/${AZURE_IMAGE_REPOSITORY}:${GITHUB_SHA}"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          az acr build \
+            --registry "$AZURE_CONTAINER_REGISTRY" \
+            --image "${AZURE_IMAGE_REPOSITORY}:${GITHUB_SHA}" \
+            .
+
+      - name: Deploy image to Azure Container Apps
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          az containerapp update \
+            --name "$AZURE_CONTAINER_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --image "$IMAGE" \
+            --cpu 1.0 \
+            --memory 2.0Gi \
+            --min-replicas 0 \
+            --max-replicas 1 \
+            --set-env-vars \
+              MAX_UPLOAD_BYTES=10485760 \
+              MODEL_PATH=/app/backend/models/best.pt \
+              MODEL_SHA256=DA6A85A5230E4ACFDB4BB10A82B6BB148EADFCF51F7F4AE8787E40CB25E5F47F \
+              YOLO_CONFIG_DIR=/tmp/ultralytics \
+              CORS_ORIGINS=https://tactivision-mvp.pages.dev \
+              SIGLIP_DEVICE=cpu \
+            --output none
+
+          deployed_image="$(az containerapp show \
+            --name "$AZURE_CONTAINER_APP" \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --query 'properties.template.containers[0].image' \
+            --output tsv)"
+          test "$deployed_image" = "$IMAGE"
+
+      - name: Verify production API
+        run: python scripts/check_api_health.py "$API_BASE_URL"
+
+      - name: Publish deployment summary
+        if: always()
+        shell: bash
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+        run: |
+          {
+            echo "## Azure backend deployment"
+            echo
+            echo "- Commit: \`${GITHUB_SHA}\`"
+            echo "- Image: \`${IMAGE:-not-built}\`"
+            echo "- API: ${API_BASE_URL}"
+          } >> "$GITHUB_STEP_SUMMARY"

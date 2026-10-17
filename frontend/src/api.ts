@@ -2,9 +2,10 @@ import type {
   CalibrationPair,
   DetectResponse,
   Detection,
-  Point2D,
+  PassType,
   SimulationParameters,
   SimulationResult,
+  SimulationTarget,
 } from "./types";
 
 const API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
@@ -51,8 +52,10 @@ export async function calibrateImage(
 export async function simulatePass(input: {
   detections: Detection[];
   carrierId: string;
-  target: { type: "receiver" | "space"; position: Point2D; receiver_id?: string };
+  passType: PassType;
+  target: SimulationTarget;
   parameters: SimulationParameters;
+  signal?: AbortSignal;
 }): Promise<SimulationResult> {
   const players = input.detections
     .filter(
@@ -69,10 +72,12 @@ export async function simulatePass(input: {
     }));
   const response = await fetch(`${API_URL}/simulate`, {
     method: "POST",
+    signal: input.signal,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       players,
       ball_carrier_id: input.carrierId,
+      pass_type: input.passType,
       target: input.target,
       parameters: input.parameters,
     }),

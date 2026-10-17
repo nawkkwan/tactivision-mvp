@@ -1,5 +1,7 @@
 export type TeamId = "team_a" | "team_b" | "unassigned";
 export type PlayerClass = "player" | "goalkeeper" | "referee" | "ball";
+export type PassType = "ground" | "chip" | "long_ball";
+export type TargetMode = "receiver" | "space" | "through_ball";
 
 export interface Point2D {
   x: number;
@@ -35,7 +37,14 @@ export interface CalibrationResult {
 
 export interface DetectResponse {
   image: { width: number; height: number; fingerprint: string };
-  detector: { model: string; mode: "generic" | "fine_tuned" };
+  detector: {
+    model: string;
+    mode: "generic" | "fine_tuned";
+    confidence_threshold: number;
+    person_confidence_threshold: number;
+    ball_confidence_threshold: number;
+    iou_threshold: number;
+  };
   detections: Detection[];
   calibration: CalibrationResult;
 }
@@ -48,27 +57,61 @@ export interface CalibrationPair {
 
 export interface SimulationParameters {
   ball_speed: number;
+  chip_speed: number;
+  chip_apex_height: number;
+  long_ball_speed: number;
+  long_ball_apex_height: number;
   defender_speed: number;
+  attacker_speed: number;
   reaction_time: number;
   reach_radius: number;
   sample_step: number;
 }
 
+export interface SimulationTarget {
+  type: TargetMode;
+  position: Point2D;
+  receiver_id?: string;
+}
+
+export interface SimulationSelection {
+  target: SimulationTarget;
+  targetLabel: string;
+  targetPixel: Point2D;
+}
+
 export interface SimulationResult {
+  pass_type: PassType;
   risk: "low" | "medium" | "high";
+  risk_percent: number;
   pass_distance: number;
   ball_time: number;
   interceptor_id: string | null;
   intercept_point: Point2D | null;
   minimum_margin: number | null;
+  receiver_id: string | null;
+  receiver_arrival_time: number | null;
+  receiver_ball_margin: number | null;
+  interceptors: Array<{
+    player_id: string;
+    intercept_point: Point2D;
+    time_margin: number;
+    path_progress_ratio: number;
+    ball_height: number;
+    ball_time: number;
+    defender_time: number;
+    teammate_id: string | null;
+    teammate_time: number | null;
+    ball_time_margin: number;
+    teammate_time_margin: number | null;
+  }>;
   explanation: string;
   disclaimer: string;
 }
 
-export interface Comparison {
+export interface Comparison extends SimulationSelection {
   id: string;
-  targetLabel: string;
-  targetPixel: Point2D;
+  parameters: SimulationParameters;
   interceptPixel: Point2D | null;
   result: SimulationResult;
 }

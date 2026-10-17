@@ -1,6 +1,10 @@
 # TactiVision MVP
 
-TactiVision เป็นเว็บทดลองวิเคราะห์ **Pass Interception Risk** จากภาพนิ่งฟุตบอล ระบบตรวจตำแหน่งผู้เล่น แบ่งทีม แปลงพิกัดภาพเป็นพิกัดสนาม และเปรียบเทียบทางเลือกการจ่ายบอลได้สูงสุด 3 ทางเลือก โดยผลลัพธ์เป็นการจำลองจากสมมติฐาน ไม่ใช่เปอร์เซ็นต์การจ่ายบอลสำเร็จ
+[![CI](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/ci.yml/badge.svg)](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/ci.yml)
+[![Backend deploy](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/backend-deploy.yml/badge.svg?branch=main)](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/backend-deploy.yml)
+[![Backend health](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/api-health.yml/badge.svg)](https://github.com/nawkkwan/tactivision-mvp/actions/workflows/api-health.yml)
+
+TactiVision เป็นเว็บทดลองวิเคราะห์ **Pass Interception Risk** จากภาพนิ่งฟุตบอล ระบบตรวจตำแหน่งผู้เล่น แบ่งทีม แปลงพิกัดภาพเป็นพิกัดสนาม และเปรียบเทียบลูกเรียดหรือลูกชิพไปยังผู้รับหรือพื้นที่ว่างได้สูงสุด 3 ทางเลือก ผลลัพธ์แสดงดัชนีความเสี่ยง 0–100% จากสมมติฐานของแบบจำลอง ไม่ใช่ความน่าจะเป็นจากข้อมูลการแข่งขันจริง
 
 ## เริ่มใช้งานด้วย Docker
 
@@ -44,6 +48,12 @@ $env:MODEL_PATH = "backend/models/best.pt"
 หากไม่กำหนด ระบบใช้ `yolo11n.pt` และแมปคลาส `person` เป็น `player`, `sports ball` เป็น `ball` ชั่วคราว
 
 อ่านรายละเอียด API ที่ [docs/API.md](docs/API.md) และสมมติฐานการจำลองที่ [docs/ASSUMPTIONS.md](docs/ASSUMPTIONS.md)
+
+อ่านหลักฐานและค่าความเร็วพาสที่เตรียมไว้สำหรับการสอบเทียบที่ [docs/PASS_SPEED_RESEARCH.md](docs/PASS_SPEED_RESEARCH.md)
+
+อ่านฐานงานวิจัยของรูปแบบพาส การตัดบอล และ Automatic Calibration ที่ [docs/RESEARCH_FOUNDATIONS.md](docs/RESEARCH_FOUNDATIONS.md)
+
+อ่านขั้นตอน Deploy Frontend บน Cloudflare Pages, Backend บน Render และตั้ง GitHub Actions ที่ [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
 ## ทำงานร่วมกันบน GitHub
 

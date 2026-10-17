@@ -53,6 +53,10 @@ class ImageMetadata(BaseModel):
 class DetectorMetadata(BaseModel):
     model: str
     mode: Literal["generic", "fine_tuned"]
+    confidence_threshold: float = Field(ge=0, le=1)
+    person_confidence_threshold: float = Field(ge=0, le=1)
+    ball_confidence_threshold: float = Field(ge=0, le=1)
+    iou_threshold: float = Field(ge=0, le=1)
 
 
 class DetectResponse(BaseModel):
@@ -87,20 +91,25 @@ class SimulationPlayer(BaseModel):
 
 
 class SimulationTarget(BaseModel):
-    type: Literal["receiver", "space"]
+    type: Literal["receiver", "space", "through_ball"]
     position: Point2D
     receiver_id: str | None = None
 
     @model_validator(mode="after")
-    def receiver_requires_id(self) -> "SimulationTarget":
-        if self.type == "receiver" and not self.receiver_id:
-            raise ValueError("receiver target requires receiver_id")
+    def player_target_requires_id(self) -> "SimulationTarget":
+        if self.type in {"receiver", "through_ball"} and not self.receiver_id:
+            raise ValueError("receiver and through_ball targets require receiver_id")
         return self
 
 
 class SimulationParameters(BaseModel):
     ball_speed: float = Field(default=18, gt=0, le=60)
+    chip_speed: float = Field(default=14, gt=0, le=40)
+    chip_apex_height: float = Field(default=3, ge=1, le=8)
+    long_ball_speed: float = Field(default=15.8, gt=0, le=40)
+    long_ball_apex_height: float = Field(default=3.8, ge=1, le=10)
     defender_speed: float = Field(default=7, gt=0, le=15)
+    attacker_speed: float = Field(default=7, gt=0, le=15)
     reaction_time: float = Field(default=0.3, ge=0, le=3)
     reach_radius: float = Field(default=1, ge=0, le=3)
     sample_step: float = Field(default=0.5, gt=0.05, le=5)
@@ -109,17 +118,42 @@ class SimulationParameters(BaseModel):
 class SimulateRequest(BaseModel):
     players: list[SimulationPlayer] = Field(min_length=2)
     ball_carrier_id: str
+    pass_type: Literal["ground", "chip", "long_ball"] = "ground"
     target: SimulationTarget
     parameters: SimulationParameters = Field(default_factory=SimulationParameters)
 
 
+class SimulationInterceptor(BaseModel):
+    player_id: str
+    intercept_point: Point2D
+    time_margin: float
+    path_progress_ratio: float = Field(ge=0, le=1)
+    ball_height: float = Field(ge=0)
+    ball_time: float = Field(ge=0)
+    defender_time: float = Field(ge=0)
+    teammate_id: str | None = None
+    teammate_time: float | None = Field(default=None, ge=0)
+    ball_time_margin: float
+    teammate_time_margin: float | None = None
+
+
 class SimulateResponse(BaseModel):
+    pass_type: Literal["ground", "chip", "long_ball"]
     risk: Literal["low", "medium", "high"]
+    risk_percent: int = Field(ge=0, le=100)
     pass_distance: float
     ball_time: float
     interceptor_id: str | None
     intercept_point: Point2D | None
     minimum_margin: float | None
+    receiver_id: str | None = None
+    receiver_arrival_time: float | None = Field(default=None, ge=0)
+    receiver_ball_margin: float | None = None
+    interceptors: list[SimulationInterceptor] = Field(default_factory=list)
     explanation: str
-    disclaimer: str = "ผลนี้เป็นการจำลองจากสมมติฐาน ไม่ใช่เปอร์เซ็นต์การจ่ายบอลสำเร็จจริง"
+    disclaimer: str = (
+        "เปอร์เซ็นต์นี้เป็นดัชนีความเสี่ยงจากแบบจำลองตามสมมติฐาน "
+        "ไม่ใช่ความน่าจะเป็นที่วัดจากข้อมูลการแข่งขันจริง; แทงทะลุช่องสมมติว่าผู้รับวิ่งตรงไปยังจุดที่ผู้ใช้เลือก "
+        "และลูกเปิดยาวใช้ความเร็วคงที่กับวิถีพาราโบลาประมาณการ ไม่จำลองแรงต้านอากาศหรือสปิน"
+    )
 

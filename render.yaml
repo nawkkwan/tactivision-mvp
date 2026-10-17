@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: tactivision-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: MAX_UPLOAD_BYTES
+        value: "10485760"
+      - key: MODEL_PATH
+        value: /app/backend/models/best.pt
+      - key: INFERENCE_CONFIDENCE_THRESHOLD
+        value: "0.15"
+      - key: PERSON_CONFIDENCE_THRESHOLD
+        value: "0.50"
+      - key: BALL_CONFIDENCE_THRESHOLD
+        value: "0.15"
+      - key: INFERENCE_IOU_THRESHOLD
+        value: "0.55"
+      - key: MODEL_SHA256
+        value: DA6A85A5230E4ACFDB4BB10A82B6BB148EADFCF51F7F4AE8787E40CB25E5F47F
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ORIGIN_REGEX
+        sync: false

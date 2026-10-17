@@ -4,7 +4,11 @@ services:
       context: .
       dockerfile: backend/Dockerfile
     environment:
-      MODEL_PATH: ${MODEL_PATH:-backend/models/yolo11n.pt}
+      MODEL_PATH: ${MODEL_PATH:-/app/yolo11n.pt}
+      INFERENCE_CONFIDENCE_THRESHOLD: ${INFERENCE_CONFIDENCE_THRESHOLD:-0.15}
+      PERSON_CONFIDENCE_THRESHOLD: ${PERSON_CONFIDENCE_THRESHOLD:-0.50}
+      BALL_CONFIDENCE_THRESHOLD: ${BALL_CONFIDENCE_THRESHOLD:-0.15}
+      INFERENCE_IOU_THRESHOLD: ${INFERENCE_IOU_THRESHOLD:-0.55}
       YOLO_CONFIG_DIR: /root/.cache/ultralytics
       CORS_ORIGINS: http://localhost:4173,http://localhost:5173,http://127.0.0.1:4173,http://127.0.0.1:5173
     ports:
