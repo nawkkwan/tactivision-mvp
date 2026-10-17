@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Arrow, Circle, Group, Image as KonvaImage, Label, Layer, Line, Rect, Stage, Tag, Text } from "react-konva";
 import type { CalibrationPair, Detection, PassType, Point2D } from "../types";
 
-const CANVAS_WIDTH = 760;
+const DEFAULT_CANVAS_WIDTH = 760;
 const teamColors = {
   team_a: "#50d9ff",
   team_b: "#ff5c67",
@@ -57,21 +57,38 @@ export function PitchWorkspace({
   onDetectionClick,
   onCanvasClick,
 }: PitchWorkspaceProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const image = useCanvasImage(imageUrl);
   const [hoveredDetectionId, setHoveredDetectionId] = useState<string | null>(null);
-  const scale = imageWidth > 0 ? CANVAS_WIDTH / imageWidth : 1;
-  const canvasHeight = Math.max(420, imageHeight * scale);
+  const [canvasWidth, setCanvasWidth] = useState(DEFAULT_CANVAS_WIDTH);
+  const scale = imageWidth > 0 ? canvasWidth / imageWidth : 1;
+  const canvasHeight = Math.max(1, imageHeight * scale);
   const carrier = useMemo(
     () => detections.find((item) => item.id === carrierId),
     [carrierId, detections],
   );
 
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+    const updateWidth = (width: number) => setCanvasWidth(Math.max(1, Math.floor(width)));
+    updateWidth(shell.clientWidth);
+    const observer = new ResizeObserver(([entry]) => updateWidth(entry.contentRect.width));
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
+
   return (
-    <div className="canvas-shell" role="img" aria-label="พื้นที่วิเคราะห์ภาพฟุตบอล">
+    <div
+      ref={shellRef}
+      className={`canvas-shell ${image ? "has-image" : ""}`}
+      role="img"
+      aria-label="พื้นที่วิเคราะห์ภาพฟุตบอล"
+    >
       {!image ? <div className="canvas-empty">อัปโหลดภาพ หรือคลิก "ลองฉากตัวอย่าง" เพื่อเริ่มต้นวิเคราะห์</div> : null}
       {image ? (
         <Stage
-          width={CANVAS_WIDTH}
+          width={canvasWidth}
           height={canvasHeight}
           onMouseLeave={() => setHoveredDetectionId(null)}
           onClick={(event) => {
@@ -81,7 +98,7 @@ export function PitchWorkspace({
           }}
         >
           <Layer>
-            <KonvaImage image={image} width={CANVAS_WIDTH} height={imageHeight * scale} listening={false} />
+            <KonvaImage image={image} width={canvasWidth} height={canvasHeight} listening={false} />
             {carrier && targetPixel ? (
               <Arrow
                 points={[

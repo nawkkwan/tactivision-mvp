@@ -177,6 +177,14 @@ function cloneDemo(): DetectResponse {
   return structuredClone(demoAnalysis);
 }
 
+function analysisProgressLabel(progress: number) {
+  if (progress < 24) return "กำลังอัปโหลดภาพเข้าสู่ระบบ";
+  if (progress < 55) return "โมเดลกำลังตรวจจับผู้เล่นและลูกบอล";
+  if (progress < 78) return "กำลังแยกทีมจากสีชุดแข่งขัน";
+  if (progress < 100) return "กำลังเตรียมพิกัดและผลวิเคราะห์";
+  return "วิเคราะห์ภาพเสร็จแล้ว";
+}
+
 function App() {
   const fileInput = useRef<HTMLInputElement>(null);
   const simulationRequest = useRef<AbortController | null>(null);
@@ -187,6 +195,7 @@ function App() {
   const [analysis, setAnalysis] = useState<DetectResponse | null>(null);
   const [isFixture, setIsFixture] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [analysisProgress, setAnalysisProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [manualMode, setManualMode] = useState(false);
@@ -215,6 +224,18 @@ function App() {
     simulationRequest.current?.abort();
     simulationRequest.current = null;
   }, []);
+
+  useEffect(() => {
+    if (analysisProgress === null || analysisProgress >= 92) return;
+    const timer = window.setInterval(() => {
+      setAnalysisProgress((current) => {
+        if (current === null) return null;
+        const increment = current < 30 ? 7 : current < 65 ? 4 : 2;
+        return Math.min(92, current + increment);
+      });
+    }, 650);
+    return () => window.clearInterval(timer);
+  }, [analysisProgress]);
 
   function cancelSimulation() {
     if (simulationRequest.current) {
@@ -246,15 +267,19 @@ function App() {
     setActiveComparisonId(null);
     setError(null);
     setNotice(null);
+    setAnalysisProgress(null);
   }
 
   async function handleFile(file: File) {
     const nextUrl = URL.createObjectURL(file);
     resetAnalysis(nextUrl);
     setBusy(true);
+    setAnalysisProgress(6);
     setNotice("กำลังตรวจผู้เล่น แบ่งทีม และลอง Auto Calibration…");
     try {
       const result = await detectImage(file);
+      setAnalysisProgress(100);
+      await new Promise((resolve) => window.setTimeout(resolve, 300));
       setAnalysis(result);
       setManualMode(result.calibration.status !== "success");
       setStep(2);
@@ -264,6 +289,7 @@ function App() {
       setError(caught instanceof Error ? caught.message : "วิเคราะห์ภาพไม่สำเร็จ");
       setNotice(null);
     } finally {
+      setAnalysisProgress(null);
       setBusy(false);
     }
   }
@@ -378,6 +404,32 @@ function App() {
         targetLabel,
       );
     }
+  }
+
+  function handleFieldMapClick(fieldPoint: Point2D) {
+    if (step !== 5 || !analysis || !carrierId || !analysis.calibration.matrix) return;
+    if (targetMode === "receiver") {
+      setNotice("โหมดส่งเข้าเท้า: คลิกตัวผู้เล่นบนภาพจริงหรือแผนผัง 2D");
+      return;
+    }
+    if (targetMode === "through_ball" && !runnerId) {
+      setError("เลือกเพื่อนร่วมทีมที่จะวิ่งรับบอลก่อน แล้วคลิกจุดว่างบนแผนผัง 2D");
+      return;
+    }
+    const inverse = invertMatrix3(analysis.calibration.matrix);
+    const targetPixel = inverse ? applyHomography(fieldPoint, inverse) : null;
+    if (!targetPixel) {
+      setError("ไม่สามารถแปลงจุดบนสนามกลับไปยังภาพจริงได้");
+      return;
+    }
+    const targetLabel = `${targetMode === "through_ball" ? `แทงให้ ${runnerId} ไปที่` : "พื้นที่ว่าง"} ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`;
+    void runSimulation(
+      targetMode === "through_ball"
+        ? { type: "through_ball", receiver_id: runnerId!, position: fieldPoint }
+        : { type: "space", position: fieldPoint },
+      targetPixel,
+      targetLabel,
+    );
   }
 
   function removeCalibrationPoints(label?: string) {
@@ -519,10 +571,10 @@ function App() {
     setRunnerId(null);
     setError(null);
     setNotice(nextMode === "receiver"
-      ? "เลือกผู้รับบอลในทีมเพื่อคำนวณใหม่"
+      ? "เลือกผู้รับบอลบนภาพจริงหรือแผนผัง 2D เพื่อคำนวณใหม่"
       : nextMode === "space"
-        ? "คลิกพื้นที่ว่างบนภาพเพื่อคำนวณใหม่"
-        : "เลือกเพื่อนที่จะวิ่งรับบอล แล้วคลิกจุดว่างข้างหน้าเพื่อคำนวณใหม่");
+        ? "คลิกพื้นที่ว่างบนภาพจริงหรือแผนผัง 2D เพื่อคำนวณใหม่"
+        : "เลือกเพื่อนที่จะวิ่งรับบอล แล้วคลิกจุดว่างข้างหน้าบนภาพจริงหรือแผนผัง 2D");
   }
 
   function changeRunner(id: string) {
@@ -667,6 +719,13 @@ function App() {
                 detections={analysis.detections}
                 carrierId={carrierId}
                 candidateCarrierId={candidateCarrierId}
+                stage={step}
+                targetMode={targetMode}
+                passType={activeComparison?.result.pass_type ?? passType}
+                targetPosition={activeComparison?.target.position ?? null}
+                interceptPosition={activeComparison?.result.intercept_point ?? null}
+                onDetectionClick={handleDetectionClick}
+                onFieldClick={handleFieldMapClick}
               />
             ) : null}
             <div className="legend">
@@ -920,6 +979,9 @@ function App() {
                   <strong>{carrierId?.toUpperCase()}</strong>
                   <i>ล็อกแล้ว</i>
                 </div>
+                <p className="defender-scope-note">
+                  ระบบนับผู้เล่นฝ่ายตรงข้ามทุกคน รวมผู้รักษาประตู เป็นผู้ที่มีโอกาสเข้ามาสกัดบอล
+                </p>
                 <div className="simulation-choices">
                   <span>รูปแบบวิถีการจ่ายบอล</span>
                   <div className="segmented-control" role="group" aria-label="รูปแบบวิถีการจ่ายบอล">
@@ -972,9 +1034,9 @@ function App() {
                         ))}
                     </div>
                   </div>
-                ) : <p className="space-hint">คลิกตำแหน่งพื้นที่ว่างบนภาพหรือสนามเพื่อกำหนดจุดตกของบอล</p>}
+                ) : <p className="space-hint">คลิกตำแหน่งพื้นที่ว่างบนภาพจริงหรือแผนผัง 2D เพื่อกำหนดจุดตกของบอล</p>}
                 {targetMode === "through_ball" ? (
-                  <p className="space-hint">เลือกเพื่อนร่วมทีมก่อน แล้วคลิกจุดข้างหน้าที่ต้องการให้วิ่งไปรับบอล (ระบบสมมติว่าผู้เล่นวิ่งเป็นเส้นตรง)</p>
+                  <p className="space-hint">เลือกเพื่อนร่วมทีมก่อน แล้วคลิกจุดข้างหน้าบนภาพจริงหรือแผนผัง 2D ที่ต้องการให้วิ่งไปรับบอล (ระบบสมมติว่าผู้เล่นวิ่งเป็นเส้นตรง)</p>
                 ) : null}
                 <details className="advanced-panel">
                   <summary>ตั้งค่าพารามิเตอร์จำลอง (ความเร็ว / เวลาตอบสนอง)</summary>
@@ -985,9 +1047,9 @@ function App() {
                       ["chip_apex_height", "จุดสูงสุดลูกชิพ", "ม.", 1, 8, 0.25],
                       ["long_ball_speed", "ความเร็วลูกเปิดยาว*", "ม./วิ", 1, 40, 0.5],
                       ["long_ball_apex_height", "จุดสูงสุดลูกเปิดยาว*", "ม.", 1, 10, 0.25],
-                      ["defender_speed", "ความเร็วกองหลัง", "ม./วิ", 1, 15, 0.5],
+                      ["defender_speed", "ความเร็วฝ่ายรับ/ผู้รักษาประตู", "ม./วิ", 1, 15, 0.5],
                       ["attacker_speed", "ความเร็วผู้รับบอล", "ม./วิ", 1, 15, 0.5],
-                      ["reaction_time", "เวลาตอบสนองกองหลัง", "วินาที", 0, 3, 0.1],
+                      ["reaction_time", "เวลาตอบสนองฝ่ายรับ/ผู้รักษาประตู", "วินาที", 0, 3, 0.1],
                       ["reach_radius", "รัศมีระยะเอื้อมสกัด", "ม.", 0, 3, 0.1],
                     ] as const).map(([key, label, unit, min, max, increment]) => (
                       <label key={key}>
@@ -1055,6 +1117,32 @@ function App() {
         ) : null}
 
       </main>
+
+      {analysisProgress !== null ? (
+        <div className="analysis-loading-backdrop" role="dialog" aria-modal="true" aria-labelledby="analysis-loading-title">
+          <div className="analysis-loading-card">
+            <div className="analysis-loader-mark" aria-hidden="true"><span /></div>
+            <span className="eyebrow">AI MATCH ANALYSIS</span>
+            <h2 id="analysis-loading-title">กำลังวิเคราะห์ภาพการแข่งขัน</h2>
+            <p>{analysisProgressLabel(analysisProgress)}</p>
+            <div
+              className="analysis-progress-track"
+              role="progressbar"
+              aria-label="ความคืบหน้าการวิเคราะห์ภาพโดยประมาณ"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(analysisProgress)}
+            >
+              <span style={{ width: `${analysisProgress}%` }} />
+            </div>
+            <div className="analysis-progress-meta">
+              <span>ความคืบหน้าโดยประมาณ</span>
+              <strong>{Math.round(analysisProgress)}%</strong>
+            </div>
+            <small>กรุณารอสักครู่ ระบบกำลังตรวจจับผู้เล่น ลูกบอล และตำแหน่งบนสนาม</small>
+          </div>
+        </div>
+      ) : null}
 
       {showGuide ? (
         <div className="modal-backdrop" onClick={() => setShowGuide(false)} role="dialog" aria-modal="true" aria-labelledby="guide-title">
