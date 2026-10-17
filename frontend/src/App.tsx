@@ -749,11 +749,11 @@ function App() {
               onDetectionClick={handleDetectionClick}
               onCanvasClick={handleCanvasClick}
             />
-            {step === 3 && analysis.calibration.status === "success" && !manualMode ? (
+            {step === 3 && analysis?.calibration.status === "success" && !manualMode ? (
               <div className="calibration-image-action">
                 <div>
                   <span>พิกัดสนามพร้อมใช้งาน</span>
-                  <strong>ความเชื่อมั่น {Math.round(analysis.calibration.confidence * 100)}% · ตรวจภาพแล้วไปขั้นถัดไป</strong>
+                  <strong>ความเชื่อมั่น {Math.round((analysis?.calibration.confidence ?? 0) * 100)}% · ตรวจภาพแล้วไปขั้นถัดไป</strong>
                 </div>
                 <button className="primary-button" type="button" onClick={acceptCalibration}>ใช้ผลพิกัดสนามนี้และไปต่อ <span>→</span></button>
               </div>
