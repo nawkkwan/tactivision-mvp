@@ -16,16 +16,25 @@ export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
     <main className="editorial-page home-page">
       <section className="home-hero">
         <div className="hero-copy">
-          <span className="editorial-kicker">วิเคราะห์การจ่ายบอลจากภาพการแข่งขัน</span>
-          <h1>จากจังหวะที่ถกเถียง<br />สู่ทางเลือกที่ตรวจสอบได้</h1>
-          <p>TactiVision ช่วยให้โค้ชและนักวิเคราะห์เปรียบเทียบเส้นทางการจ่ายบอลจากภาพการแข่งขัน โดยแสดงระยะ เวลา จุดเสี่ยงถูกสกัด และสมมติฐานที่ใช้คำนวณ</p>
+          <span className="editorial-kicker">TACTICAL PASS ANALYSIS</span>
+          <h1>จากจังหวะที่ถกเถียง <span>สู่ทางเลือกที่ตรวจสอบได้</span></h1>
+          <p>เปรียบเทียบเส้นทางการจ่ายบอลจากภาพการแข่งขัน ด้วยพิกัดสนาม ระยะทาง เวลาเดินทาง และจุดเสี่ยงถูกสกัดที่ตรวจสอบย้อนกลับได้</p>
+          <ul className="hero-features" aria-label="ข้อมูลที่ระบบใช้วิเคราะห์">
+            <li>พิกัดสนาม</li>
+            <li>เวลาบอลเดินทาง</li>
+            <li>จุดเสี่ยงถูกสกัด</li>
+          </ul>
           <div className="hero-actions">
-            <button type="button" className="flat-primary" onClick={onAnalyze}>ลองวิเคราะห์ภาพ</button>
-            <button type="button" className="flat-link" onClick={onResearch}>ดูวิธีทำงาน →</button>
+            <button type="button" className="flat-primary" onClick={onAnalyze}>เริ่มวิเคราะห์ภาพ</button>
+            <button type="button" className="flat-link" onClick={onResearch}>อ่านวิธีคำนวณ</button>
           </div>
         </div>
-        <TelemetryFrame label="ภาพตัวอย่างสำหรับเทียบพิกัด" />
-        <p className="hero-mandate">เครื่องมือช่วยอธิบายการตัดสินใจ ไม่ใช่คำตัดสินแทนโค้ช</p>
+        <figure className="hero-match-frame">
+          <div className="hero-match-header"><span>ภาพจากการแข่งขัน</span><span>ตรวจพบผู้เล่นและลูกบอล</span></div>
+          <img src="/match-analysis.png" alt="ภาพการแข่งขันฟุตบอลที่ระบบตรวจจับผู้เล่นและลูกบอลแล้ว" />
+          <figcaption><strong>เริ่มจากภาพจริง</strong><span>นำตำแหน่งที่ตรวจพบไปเทียบกับพิกัดสนามเพื่อวิเคราะห์เส้นทางการจ่ายบอล</span></figcaption>
+        </figure>
+        <p className="hero-mandate"><span>ขอบเขตการใช้งาน</span> เครื่องมือนี้ช่วยอธิบายข้อมูลประกอบการตัดสินใจ โดยไม่ตัดสินแทนโค้ช</p>
       </section>
 
       <section className="comparison-section section-rule">
