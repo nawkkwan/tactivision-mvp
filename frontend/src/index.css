@@ -2443,6 +2443,8 @@ body { background: #f7f7f2; color: #111311; }
 .story-dossier h3 { margin: 15px 0 6px; color: #fff; font-size: 21px; }
 .story-dossier > p { margin: 0 0 16px; color: #e0eee4; font-size: 12px; line-height: 1.7; }
 .story-images { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: #629774; }
+#arsenal-leeds .story-images { grid-template-columns: minmax(0, 1fr) minmax(0, 1.405fr); }
+#spain-japan .story-images { grid-template-columns: minmax(0, 1fr) minmax(0, 1.154fr); }
 .story-images figure { min-width: 0; margin: 0; background: #063e28; }
 .story-images figcaption { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; color: #e4f0e7; font-size: 11px; }
 .story-images figcaption span { font: 500 9px "IBM Plex Mono", monospace; color: #a6cbb3; }
@@ -2478,7 +2480,9 @@ body { background: #f7f7f2; color: #111311; }
   .boundary-section header { align-items: flex-start; flex-direction: column; gap: 5px; }
 }
 @media (max-width: 680px) {
-  .story-images { grid-template-columns: 1fr; }
+  .story-images,
+  #arsenal-leeds .story-images,
+  #spain-japan .story-images { grid-template-columns: 1fr; }
   .story-dossier { padding: 12px; }
   .story-dossier > header { align-items: flex-start; flex-direction: column; }
   .story-dossier h3 { font-size: 19px; }
