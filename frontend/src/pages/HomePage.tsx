@@ -16,7 +16,7 @@ export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
     <main className="editorial-page home-page">
       <section className="home-hero">
         <div className="hero-copy">
-          <span className="editorial-kicker">TACTICAL TELEMETRY DOSSIER · VOL. 24</span>
+          <span className="editorial-kicker">วิเคราะห์การจ่ายบอลจากภาพการแข่งขัน</span>
           <h1>จากจังหวะที่ถกเถียง<br />สู่ทางเลือกที่ตรวจสอบได้</h1>
           <p>TactiVision ช่วยให้โค้ชและนักวิเคราะห์เปรียบเทียบเส้นทางการจ่ายบอลจากภาพการแข่งขัน โดยแสดงระยะ เวลา จุดเสี่ยงถูกสกัด และสมมติฐานที่ใช้คำนวณ</p>
           <div className="hero-actions">
@@ -24,24 +24,24 @@ export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
             <button type="button" className="flat-link" onClick={onResearch}>ดูวิธีทำงาน →</button>
           </div>
         </div>
-        <TelemetryFrame label="LIVE FRAME CALIBRATION" />
-        <p className="hero-mandate"><strong>EDITORIAL MANDATE</strong> เครื่องมือช่วยอธิบายการตัดสินใจ ไม่ใช่คำตัดสินแทนโค้ช</p>
+        <TelemetryFrame label="ภาพตัวอย่างสำหรับเทียบพิกัด" />
+        <p className="hero-mandate">เครื่องมือช่วยอธิบายการตัดสินใจ ไม่ใช่คำตัดสินแทนโค้ช</p>
       </section>
 
       <section className="comparison-section section-rule">
         <div className="section-heading-editorial">
-          <div><span>INTERACTIVE BENCH COMPARATOR</span><h2>เปรียบเทียบภาพการแข่งขันจริง กับการคำนวณเวกเตอร์รับบอล</h2></div>
+          <div><span>ก่อนและหลังวิเคราะห์</span><h2>เปรียบเทียบภาพการแข่งขัน กับเส้นทางการจ่ายบอลบนพิกัดสนาม</h2></div>
           <small>ภาพตัวอย่างสำหรับอธิบายการแสดงผล</small>
         </div>
         <div className="before-after-grid">
-          <TelemetryFrame compact label="ภาพการแข่งขัน (RAW BROADCAST)" />
-          <TelemetryFrame analyzed compact label="หลังการวิเคราะห์ (VECTOR TELEMETRY)" />
+          <TelemetryFrame compact label="ภาพการแข่งขัน" />
+          <TelemetryFrame analyzed compact label="หลังวิเคราะห์เส้นทาง" />
         </div>
       </section>
 
       <section className="debate-section section-rule">
         <div className="debate-intro">
-          <div><span>THE DISAGREEMENT GAP</span><h2>ทุกคนเห็นภาพเดียวกัน แต่ไม่ได้ใช้เหตุผลชุดเดียวกัน</h2></div>
+          <div><span>ทำไมคนจึงเห็นต่างกัน</span><h2>ทุกคนเห็นภาพเดียวกัน แต่ไม่ได้ใช้เหตุผลชุดเดียวกัน</h2></div>
           <p>การถกเถียงฟุตบอลมักอาศัยความจำ มุมกล้อง และผลลัพธ์ที่เกิดขึ้นแล้ว ระบบไม่ได้ทำให้ความเห็นต่างหายไป แต่ช่วยให้ทุกคนใช้พิกัด เวลา และสมมติฐานชุดเดียวกัน</p>
         </div>
         <div className="debate-rows">
@@ -52,25 +52,25 @@ export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
       </section>
 
       <section className="case-section">
-        <span>COMMUNITY DEBATES & VIRAL INCIDENTS · NEWS & BREAKDOWN</span>
+        <span>จังหวะถกเถียงจากเกมจริง</span>
         <h2>จากกระแสไวรัลออนไลน์ สู่ภาพเวกเตอร์ที่คนหยิบไปคุยต่อได้</h2>
         <p>นำจังหวะที่คนเห็นต่างมาจัดวางบนสนามมาตรฐาน แล้วแยกสิ่งที่ระบบคำนวณออกจากข้อสรุปทางแท็กติกอย่างชัดเจน</p>
-        <TelemetryFrame analyzed label="CASE STUDY 01 · VECTOR REVIEW" />
+        <TelemetryFrame analyzed label="ตัวอย่างการเปรียบเทียบเส้นทาง" />
         <div className="case-opinions">
-          <article><span>VERBAL DEBATE · MIDFIELD</span><h3>จังหวะนี้ควรเล่นปลอดภัยหรือเร่งเกม?</h3><p>ระบบแสดงเส้นทางและเวลาให้เทียบกัน ส่วนคุณค่าทางแท็กติกยังเป็นการตัดสินใจของทีมงาน</p></article>
-          <article><span>VERBAL DEBATE · BACKLINE</span><h3>คะแนนต่ำกว่า หมายถึงทางเลือกดีกว่าเสมอหรือไม่?</h3><p>ไม่เสมอ คะแนนนี้วัดเฉพาะความเสี่ยงถูกสกัดภายใต้สมมติฐาน ไม่ได้วัดคุณค่าการบุกทั้งหมด</p></article>
+          <article><h3>จังหวะนี้ควรเล่นปลอดภัยหรือเร่งเกม?</h3><p>ระบบแสดงเส้นทางและเวลาให้เทียบกัน ส่วนคุณค่าทางแท็กติกยังเป็นการตัดสินใจของทีมงาน</p></article>
+          <article><h3>คะแนนต่ำกว่า หมายถึงทางเลือกดีกว่าเสมอหรือไม่?</h3><p>ไม่เสมอ คะแนนนี้วัดเฉพาะความเสี่ยงถูกสกัดภายใต้สมมติฐาน ไม่ได้วัดคุณค่าการบุกทั้งหมด</p></article>
         </div>
       </section>
 
       <section className="boundary-section section-rule">
-        <article><span>DETERMINISTIC METRICS</span><h2>ระบบคำนวณอะไร</h2><ol><li>ระยะทางการจ่ายบอล</li><li>เวลาบอลเดินทาง</li><li>เวลาที่ฝ่ายรับเข้าถึงแนวบอล</li><li>จุดเสี่ยงถูกสกัด</li><li>คะแนนความเสี่ยง 0–100</li></ol></article>
-        <article><span>METHOD BOUNDARIES</span><h2>ระบบไม่ได้อ้างว่าอะไร</h2><ul><li>ไม่ใช่เปอร์เซ็นต์ความสำเร็จจากข้อมูลการแข่งขันจริง</li><li>ไม่ได้ตัดสินทางเลือกที่ดีที่สุดทางแท็กติก</li><li>ไม่แทนประสบการณ์ของโค้ช</li><li>ผลลัพธ์ขึ้นกับ Calibration และค่าความเร็วที่กำหนด</li></ul></article>
+        <article><h2>ระบบคำนวณอะไร</h2><ol><li>ระยะทางการจ่ายบอล</li><li>เวลาบอลเดินทาง</li><li>เวลาที่ฝ่ายรับเข้าถึงแนวบอล</li><li>จุดเสี่ยงถูกสกัด</li><li>คะแนนความเสี่ยง 0–100</li></ol></article>
+        <article><h2>ระบบไม่ได้อ้างว่าอะไร</h2><ul><li>ไม่ใช่เปอร์เซ็นต์ความสำเร็จจากข้อมูลการแข่งขันจริง</li><li>ไม่ได้ตัดสินทางเลือกที่ดีที่สุดทางแท็กติก</li><li>ไม่แทนประสบการณ์ของโค้ช</li><li>ผลลัพธ์ขึ้นกับการเทียบพิกัดและค่าความเร็วที่กำหนด</li></ul></article>
       </section>
 
       <section className="home-cta">
-        <div><span>READY TO MAP YOUR SQUAD?</span><h2>มีจังหวะที่ทีมคุณยังถกเถียงกันอยู่หรือไม่?</h2><p>เปลี่ยนภาพหนึ่งจังหวะให้เป็นบทสนทนาที่ตรวจสอบระยะ เวลา และสมมติฐานได้</p></div>
-        <button type="button" onClick={onAnalyze}>START ANALYSIS</button>
-        <button type="button" className="inverse-link" onClick={onResearch}>READ METHOD →</button>
+        <div><h2>มีจังหวะที่ทีมคุณยังถกเถียงกันอยู่หรือไม่?</h2><p>เปลี่ยนภาพหนึ่งจังหวะให้เป็นบทสนทนาที่ตรวจสอบระยะ เวลา และสมมติฐานได้</p></div>
+        <button type="button" onClick={onAnalyze}>เริ่มวิเคราะห์</button>
+        <button type="button" className="inverse-link" onClick={onResearch}>อ่านวิธีคำนวณ →</button>
       </section>
     </main>
   );
