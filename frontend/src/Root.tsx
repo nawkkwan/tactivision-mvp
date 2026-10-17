@@ -45,7 +45,7 @@ export default function Root() {
       {route === "/analyze" ? <AnalysisApp /> : null}
       {route === "/news" ? <NewsPage onAnalyze={() => navigate("/analyze")} /> : null}
       {route === "/research" ? <ResearchPage /> : null}
-      {route !== "/analyze" ? <SiteFooter onNavigate={navigate} /> : null}
+      <SiteFooter onNavigate={navigate} />
     </div>
   );
 }

@@ -2239,14 +2239,20 @@ body { background: #f7f7f2; color: #111311; }
 .research-contact h2 { margin: 7px 0; font-size: 26px; }
 .research-contact p { margin: 0; color: #555d56; }
 
-/* Editorial footer */
-.site-footer { display: grid; grid-template-columns: .8fr 1.2fr 1fr auto; gap: 40px; padding: 40px max(28px, calc((100vw - 1320px) / 2)) 24px; border-top: 1px solid #aab2ab; background: #f7f7f2; color: #313832; font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif; }
-.site-footer > p,
-.site-footer > div p { margin: 8px 0 0; font-size: 11px; line-height: 1.55; }
-.site-footer > div > span { font: 700 11px "Noto Sans Thai", sans-serif; letter-spacing: .02em; }
-.site-footer nav { display: grid; justify-items: end; }
-.site-footer nav button { padding: 2px 0; color: #313832; border: 0; background: transparent; font-size: 11px; }
-.site-footer > small { grid-column: 1 / -1; padding-top: 18px; border-top: 1px solid #cbd1cc; font: 500 10px "Noto Sans Thai", sans-serif; }
+/* Compact site footer */
+.site-footer { padding: 0 max(28px, calc((100vw - 1320px) / 2)); border-top: 1px solid #064c2c; background: #075c34; color: #fff; font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif; }
+.footer-main { display: grid; grid-template-columns: auto minmax(260px, 1fr) auto; gap: 42px; align-items: center; min-height: 76px; }
+.footer-brand { display: inline-flex; align-items: center; gap: 10px; padding: 0; color: #fff; border: 0; background: transparent; }
+.footer-brand strong { font-size: 14px; font-weight: 800; letter-spacing: -.01em; }
+.site-footer .site-brand-mark svg { fill: #fff; stroke: #fff; }
+.site-footer .site-brand-mark .brand-route { stroke: #b8dec7; }
+.footer-summary { max-width: 560px; margin: 0; color: #d7e8dd; font-size: 11px; line-height: 1.55; }
+.site-footer nav { display: flex; align-items: center; gap: 24px; }
+.site-footer nav button { padding: 4px 0; color: #fff; border: 0; border-bottom: 1px solid transparent; background: transparent; font-size: 10px; font-weight: 600; }
+.site-footer nav button:hover { border-color: #b8dec7; }
+.footer-lower { display: flex; align-items: center; justify-content: space-between; gap: 30px; min-height: 40px; border-top: 1px solid rgba(255, 255, 255, .24); color: #b8dec7; }
+.footer-lower span,
+.footer-lower small { font-size: 9px; font-weight: 500; line-height: 1.4; }
 
 /* White and green analysis workspace */
 .analysis-page { min-height: calc(100vh - 68px); padding-top: 1px; background: #f7f7f2; color: #111311; font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif; }
@@ -2360,7 +2366,9 @@ body { background: #f7f7f2; color: #111311; }
   .case-grid { grid-template-columns: 1fr 1fr; }
   .home-cta { grid-template-columns: 1fr auto; }
   .home-cta .inverse-link { grid-column: 2; }
-  .site-footer { grid-template-columns: 1fr 1fr; }
+  .footer-main { grid-template-columns: auto 1fr; gap: 18px 30px; padding: 18px 0; }
+  .footer-summary { justify-self: end; text-align: right; }
+  .site-footer nav { grid-column: 1 / -1; justify-content: space-between; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, .24); }
 }
 
 @media (max-width: 680px) {
@@ -2400,8 +2408,11 @@ body { background: #f7f7f2; color: #111311; }
   .research-contact { margin-right: 18px; margin-left: 18px; padding: 25px !important; }
   .home-cta { grid-template-columns: 1fr; }
   .home-cta .inverse-link { grid-column: auto; justify-self: start; }
-  .site-footer { grid-template-columns: 1fr; padding-right: 18px; padding-left: 18px; }
-  .site-footer nav { justify-items: start; }
+  .site-footer { padding-right: 18px; padding-left: 18px; }
+  .footer-main { grid-template-columns: 1fr; }
+  .footer-summary { justify-self: start; text-align: left; }
+  .site-footer nav { grid-column: auto; flex-wrap: wrap; justify-content: flex-start; gap: 10px 22px; }
+  .footer-lower { align-items: flex-start; flex-direction: column; gap: 5px; padding: 11px 0; }
   .analysis-main { padding-right: 18px; padding-left: 18px; }
   .analysis-page .tool-header { display: grid; }
   .analysis-guide-button { justify-self: start; }
