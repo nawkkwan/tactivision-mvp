@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { calibrateImage, detectImage, simulatePass } from "./api";
 import { DetectionReview } from "./components/DetectionReview";
 import { FieldMap } from "./components/FieldMap";
+import { PassAnalysisBoard } from "./components/PassAnalysisBoard";
 import { PitchWorkspace } from "./components/PitchWorkspace";
-import { RiskResults } from "./components/RiskResults";
 import { StepRail } from "./components/StepRail";
 import { demoAnalysis } from "./demo";
 import type {
@@ -30,18 +30,6 @@ const defaultParameters: SimulationParameters = {
   reaction_time: 0.3,
   reach_radius: 1,
   sample_step: 0.5,
-};
-
-const passTypeThai: Record<PassType, string> = {
-  ground: "ลูกเรียด",
-  chip: "ลูกชิพ",
-  long_ball: "ลูกเปิดยาว",
-};
-
-const riskThai: Record<string, string> = {
-  low: "ความเสี่ยงต่ำ",
-  medium: "ความเสี่ยงปานกลาง",
-  high: "ความเสี่ยงสูง",
 };
 
 const landmarkGroups = [
@@ -187,6 +175,7 @@ function analysisProgressLabel(progress: number) {
 
 function App() {
   const fileInput = useRef<HTMLInputElement>(null);
+  const controlPanel = useRef<HTMLElement>(null);
   const simulationRequest = useRef<AbortController | null>(null);
   const simulationSelection = useRef<SimulationSelection | null>(null);
   const [step, setStep] = useState(1);
@@ -206,6 +195,7 @@ function App() {
   const [carrierId, setCarrierId] = useState<string | null>(null);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
   const [activeComparisonId, setActiveComparisonId] = useState<string | null>(null);
+  const [pendingSlot, setPendingSlot] = useState<number | null>(null);
   const [parameters, setParameters] = useState<SimulationParameters>(defaultParameters);
   const [passType, setPassType] = useState<PassType>("ground");
   const [targetMode, setTargetMode] = useState<TargetMode>("receiver");
@@ -237,6 +227,11 @@ function App() {
     return () => window.clearInterval(timer);
   }, [analysisProgress]);
 
+  useEffect(() => {
+    const content = controlPanel.current?.querySelector<HTMLElement>(".panel-content");
+    if (content) content.scrollTop = 0;
+  }, [step]);
+
   function cancelSimulation() {
     if (simulationRequest.current) {
       simulationRequest.current.abort();
@@ -244,7 +239,7 @@ function App() {
       setBusy(false);
     }
     simulationSelection.current = null;
-    setActiveComparisonId(null);
+    setPendingSlot(null);
   }
 
   function resetAnalysis(nextImageUrl: string | null = null) {
@@ -265,6 +260,7 @@ function App() {
     setTargetMode("receiver");
     setRunnerId(null);
     setActiveComparisonId(null);
+    setPendingSlot(null);
     setError(null);
     setNotice(null);
     setAnalysisProgress(null);
@@ -382,10 +378,6 @@ function App() {
     }
 
     if (step === 5 && carrierId && analysis?.calibration.matrix) {
-      if (targetMode === "receiver") {
-        setNotice("เลือกโหมดพื้นที่ว่างหรือแทงทะลุช่องก่อนคลิกบนสนาม");
-        return;
-      }
       if (targetMode === "through_ball" && !runnerId) {
         setError("เลือกเพื่อนร่วมทีมที่จะวิ่งรับบอลก่อน แล้วคลิกจุดว่างข้างหน้า");
         return;
@@ -396,6 +388,7 @@ function App() {
         return;
       }
       const targetLabel = `${targetMode === "through_ball" ? `แทงให้ ${runnerId} ไปที่` : "พื้นที่ว่าง"} ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`;
+      if (targetMode !== "through_ball") setTargetMode("space");
       void runSimulation(
         targetMode === "through_ball"
           ? { type: "through_ball", receiver_id: runnerId!, position: fieldPoint }
@@ -408,10 +401,6 @@ function App() {
 
   function handleFieldMapClick(fieldPoint: Point2D) {
     if (step !== 5 || !analysis || !carrierId || !analysis.calibration.matrix) return;
-    if (targetMode === "receiver") {
-      setNotice("โหมดส่งเข้าเท้า: คลิกตัวผู้เล่นบนภาพจริงหรือแผนผัง 2D");
-      return;
-    }
     if (targetMode === "through_ball" && !runnerId) {
       setError("เลือกเพื่อนร่วมทีมที่จะวิ่งรับบอลก่อน แล้วคลิกจุดว่างบนแผนผัง 2D");
       return;
@@ -423,6 +412,7 @@ function App() {
       return;
     }
     const targetLabel = `${targetMode === "through_ball" ? `แทงให้ ${runnerId} ไปที่` : "พื้นที่ว่าง"} ${fieldPoint.x.toFixed(1)}, ${fieldPoint.y.toFixed(1)} m`;
+    if (targetMode !== "through_ball") setTargetMode("space");
     void runSimulation(
       targetMode === "through_ball"
         ? { type: "through_ball", receiver_id: runnerId!, position: fieldPoint }
@@ -505,13 +495,16 @@ function App() {
     targetLabel: string,
     nextPassType: PassType = passType,
     nextParameters: SimulationParameters = parameters,
+    replaceSlot?: number,
   ) {
     if (!analysis || !carrierId) return;
     simulationRequest.current?.abort();
     const request = new AbortController();
+    const activeSlot = comparisons.findIndex((item) => item.id === activeComparisonId);
+    const targetSlot = replaceSlot ?? (comparisons.length < 3 ? comparisons.length : Math.max(0, activeSlot));
     simulationRequest.current = request;
     simulationSelection.current = { target, targetPixel, targetLabel };
-    setActiveComparisonId(null);
+    setPendingSlot(targetSlot);
     setBusy(true);
     setError(null);
     setNotice(`กำลังคำนวณ ${targetLabel} · ${nextPassType.toUpperCase()}…`);
@@ -539,9 +532,12 @@ function App() {
         interceptPixel,
         result,
       };
-      setComparisons((current) => [...current.slice(-2), comparison]);
+      setComparisons((current) => {
+        if (targetSlot < current.length) return current.map((item, index) => index === targetSlot ? comparison : item);
+        return [...current, comparison].slice(0, 3);
+      });
       setActiveComparisonId(comparison.id);
-      setNotice(`คำนวณ ${targetLabel} แล้ว — ความเสี่ยงถูกตัดบอล ${result.risk_percent}%`);
+      setNotice(`คำนวณ ${targetLabel} แล้ว — คะแนนความเสี่ยง ${result.risk_percent}/100`);
     } catch (caught) {
       if (request.signal.aborted || simulationRequest.current !== request) return;
       setError(caught instanceof Error ? caught.message : "คำนวณ Simulation ไม่สำเร็จ");
@@ -549,6 +545,7 @@ function App() {
     } finally {
       if (simulationRequest.current === request) {
         simulationRequest.current = null;
+        setPendingSlot(null);
         setBusy(false);
       }
     }
@@ -560,7 +557,8 @@ function App() {
     setError(null);
     const selection = simulationSelection.current;
     if (selection) {
-      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, nextPassType);
+      const slot = comparisons.findIndex((item) => item.id === activeComparisonId);
+      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, nextPassType, parameters, slot >= 0 ? slot : undefined);
     }
   }
 
@@ -589,7 +587,8 @@ function App() {
     setParameters(nextParameters);
     const selection = simulationSelection.current;
     if (selection) {
-      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, passType, nextParameters);
+      const slot = comparisons.findIndex((item) => item.id === activeComparisonId);
+      void runSimulation(selection.target, selection.targetPixel, selection.targetLabel, passType, nextParameters, slot >= 0 ? slot : undefined);
     }
   }
 
@@ -615,10 +614,8 @@ function App() {
       return;
     }
     if (step !== 5 || !analysis || !carrierId) return;
-    if (targetMode !== "receiver") {
-      setNotice(targetMode === "through_ball"
-        ? "โหมดแทงทะลุช่องทำงานอยู่ — เลือกผู้วิ่งแล้วคลิกจุดว่างข้างหน้า"
-        : "โหมดพื้นที่ว่างทำงานอยู่ — คลิกตำแหน่งว่างบนสนาม");
+    if (targetMode === "through_ball") {
+      setNotice("โหมดแทงทะลุช่องทำงานอยู่ — เลือกผู้วิ่งในตั้งค่าขั้นสูง แล้วคลิกจุดว่างข้างหน้า");
       return;
     }
     if (detection.id === carrierId) {
@@ -636,6 +633,7 @@ function App() {
       setError("เลือกผู้เล่นฝ่ายตรงข้ามเป็นผู้รับบอลไม่ได้");
       return;
     }
+    setTargetMode("receiver");
     void runSimulation(
       { type: "receiver", receiver_id: detection.id, position: detection.field_position },
       detection.foot_pixel,
@@ -695,8 +693,45 @@ function App() {
         }} />
 
         {error ? <div className="alert error-alert" role="alert"><strong>ข้อความแจ้งเตือน: </strong>{error}</div> : null}
-        {notice ? <div className="alert notice-alert" role="status">{notice}</div> : null}
+        {analysisProgress !== null ? (
+          <div className="alert notice-alert analysis-progress-alert" role="status">
+            <div><span>{analysisProgressLabel(analysisProgress)}</span><strong>{Math.round(analysisProgress)}%</strong></div>
+            <div className="analysis-progress-track" role="progressbar" aria-label="ความคืบหน้าการวิเคราะห์ภาพโดยประมาณ" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(analysisProgress)}>
+              <span style={{ width: `${analysisProgress}%` }} />
+            </div>
+          </div>
+        ) : notice ? <div className="alert notice-alert" role="status">{notice}</div> : null}
 
+        {step === 5 && analysis && carrierId ? (
+          <PassAnalysisBoard
+            analysis={analysis}
+            imageUrl={imageUrl}
+            carrierId={carrierId}
+            comparisons={comparisons}
+            activeId={activeComparisonId}
+            pendingSlot={pendingSlot}
+            passType={passType}
+            targetMode={targetMode}
+            runnerId={runnerId}
+            parameters={parameters}
+            calibrationPairs={calibrationPairs}
+            onPassTypeChange={changePassType}
+            onDetectionClick={handleDetectionClick}
+            onCanvasClick={handleCanvasClick}
+            onFieldClick={handleFieldMapClick}
+            onSelectComparison={selectComparison}
+            onClearComparisons={() => {
+              cancelSimulation();
+              setComparisons([]);
+              setActiveComparisonId(null);
+              setNotice("ล้างผลแล้ว เลือกเป้าหมายเพื่อคำนวณใหม่");
+            }}
+            onTargetModeChange={changeTargetMode}
+            onRunnerChange={changeRunner}
+            onParametersChange={changeParameters}
+            onResetParameters={() => changeParameters(defaultParameters)}
+          />
+        ) : (
         <section className="workspace-grid">
           <div className="visual-column">
             <PitchWorkspace
@@ -714,6 +749,15 @@ function App() {
               onDetectionClick={handleDetectionClick}
               onCanvasClick={handleCanvasClick}
             />
+            {step === 3 && analysis?.calibration.status === "success" && !manualMode ? (
+              <div className="calibration-image-action">
+                <div>
+                  <span>พิกัดสนามพร้อมใช้งาน</span>
+                  <strong>ความเชื่อมั่น {Math.round((analysis?.calibration.confidence ?? 0) * 100)}% · ตรวจภาพแล้วไปขั้นถัดไป</strong>
+                </div>
+                <button className="primary-button" type="button" onClick={acceptCalibration}>ใช้ผลพิกัดสนามนี้และไปต่อ <span>→</span></button>
+              </div>
+            ) : null}
             {analysis && step >= 3 && analysis.calibration.status === "success" ? (
               <FieldMap
                 detections={analysis.detections}
@@ -721,9 +765,8 @@ function App() {
                 candidateCarrierId={candidateCarrierId}
                 stage={step}
                 targetMode={targetMode}
-                passType={activeComparison?.result.pass_type ?? passType}
-                targetPosition={activeComparison?.target.position ?? null}
-                interceptPosition={activeComparison?.result.intercept_point ?? null}
+                comparisons={[]}
+                activeId={null}
                 onDetectionClick={handleDetectionClick}
                 onFieldClick={handleFieldMapClick}
               />
@@ -736,7 +779,7 @@ function App() {
             </div>
           </div>
 
-          <aside className="control-panel">
+          <aside className="control-panel" ref={controlPanel}>
             {step === 1 ? (
               <div className="panel-content intro-panel">
                 <span className="panel-number">01</span>
@@ -796,14 +839,9 @@ function App() {
                   ) : null}
                 </div>
                 {!manualMode && analysis.calibration.status === "success" ? (
-                  <>
-                    <button className="primary-button" type="button" onClick={acceptCalibration}>
-                      ใช้ผลพิกัดสนามนี้และไปต่อ <span>→</span>
-                    </button>
-                    <button className="text-button" type="button" onClick={() => setManualMode(true)}>
-                      ต้องการเลือกจุดเทียบสนามด้วยตนเอง
-                    </button>
-                  </>
+                  <button className="text-button" type="button" onClick={() => setManualMode(true)}>
+                    ต้องการเลือกจุดเทียบสนามด้วยตนเอง
+                  </button>
                 ) : (
                   <div className="manual-calibration">
                     <p><strong>ภาพไม่จำเป็นต้องเห็นทั้งสนาม</strong> เลือกจุดที่มองเห็นชัดอย่างน้อย 4 จุด กระจายกัน และไม่อยู่แนวเดียวกัน แล้วคลิกจุดเดียวกันบนภาพใหญ่</p>
@@ -968,181 +1006,11 @@ function App() {
               </div>
             ) : null}
 
-            {step === 5 && analysis ? (
-              <div className="panel-content simulation-panel">
-                <span className="panel-number">05</span>
-                <span className="eyebrow">ขั้นตอนที่ 5</span>
-                <h2>เลือกเป้าหมาย & จำลองทางเลือก</h2>
-                <p>เลือกผู้รับหรือจุดบนสนาม และสลับรูปแบบวิถีบอลเพื่อประเมินความเสี่ยงได้ทันที โดยไม่ต้องรันโมเดลตรวจจับซ้ำ</p>
-                <div className="locked-carrier">
-                  <span>ผู้เล่นครองบอล:</span>
-                  <strong>{carrierId?.toUpperCase()}</strong>
-                  <i>ล็อกแล้ว</i>
-                </div>
-                <p className="defender-scope-note">
-                  ระบบนับผู้เล่นฝ่ายตรงข้ามทุกคน รวมผู้รักษาประตู เป็นผู้ที่มีโอกาสเข้ามาสกัดบอล
-                </p>
-                <div className="simulation-choices">
-                  <span>รูปแบบวิถีการจ่ายบอล</span>
-                  <div className="segmented-control" role="group" aria-label="รูปแบบวิถีการจ่ายบอล">
-                    <button type="button" aria-pressed={passType === "ground"} onClick={() => changePassType("ground")}>
-                      <strong>ลูกเรียด</strong><small>บอลเลียดพื้น</small>
-                    </button>
-                    <button type="button" aria-pressed={passType === "chip"} onClick={() => changePassType("chip")}>
-                      <strong>ลูกชิพ</strong><small>ลอยโค้งข้ามตัว</small>
-                    </button>
-                    <button type="button" aria-pressed={passType === "long_ball"} onClick={() => changePassType("long_ball")}>
-                      <strong>ลูกเปิดยาว</strong><small>บอลโด่งพุ่งไกล</small>
-                    </button>
-                  </div>
-                  <span>ประเภทเป้าหมาย</span>
-                  <div className="segmented-control" role="group" aria-label="ประเภทเป้าหมาย">
-                    <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => changeTargetMode("receiver")}>
-                      <strong>ส่งเข้าเท้าเพื่อน</strong><small>ส่งให้เพื่อนร่วมทีม</small>
-                    </button>
-                    <button type="button" aria-pressed={targetMode === "space"} onClick={() => changeTargetMode("space")}>
-                      <strong>จ่ายเข้าพื้นที่ว่าง</strong><small>คลิกจุดบนสนาม</small>
-                    </button>
-                    <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => changeTargetMode("through_ball")}>
-                      <strong>แทงทะลุช่อง</strong><small>เพื่อนวิ่งไปรับจุดว่าง</small>
-                    </button>
-                  </div>
-                </div>
-                {targetMode !== "space" ? (
-                  <div className="receiver-shortcuts" aria-label="รายชื่อเพื่อนร่วมทีมที่รับบอลได้">
-                    <span>{targetMode === "through_ball" ? "เลือกเพื่อนร่วมทีมที่จะวิ่งไปรับบอล:" : "คลิกเลือกเพื่อนร่วมทีมที่จะรับบอล:"}</span>
-                    <div>
-                      {analysis.detections
-                        .filter((item) => {
-                          const carrier = analysis.detections.find((candidate) => candidate.id === carrierId);
-                          return (
-                            item.id !== carrierId &&
-                            item.team_id === carrier?.team_id &&
-                            item.field_position !== null &&
-                            (item.class_name === "player" || item.class_name === "goalkeeper")
-                          );
-                        })
-                        .map((receiver) => (
-                          <button
-                            type="button"
-                            key={receiver.id}
-                            aria-pressed={targetMode === "through_ball" ? runnerId === receiver.id : undefined}
-                            onClick={() => targetMode === "through_ball" ? changeRunner(receiver.id) : handleDetectionClick(receiver)}
-                          >
-                            {receiver.id.toUpperCase()}
-                          </button>
-                        ))}
-                    </div>
-                  </div>
-                ) : <p className="space-hint">คลิกตำแหน่งพื้นที่ว่างบนภาพจริงหรือแผนผัง 2D เพื่อกำหนดจุดตกของบอล</p>}
-                {targetMode === "through_ball" ? (
-                  <p className="space-hint">เลือกเพื่อนร่วมทีมก่อน แล้วคลิกจุดข้างหน้าบนภาพจริงหรือแผนผัง 2D ที่ต้องการให้วิ่งไปรับบอล (ระบบสมมติว่าผู้เล่นวิ่งเป็นเส้นตรง)</p>
-                ) : null}
-                <details className="advanced-panel">
-                  <summary>ตั้งค่าพารามิเตอร์จำลอง (ความเร็ว / เวลาตอบสนอง)</summary>
-                  <div className="field-grid">
-                    {([
-                      ["ball_speed", "ความเร็วลูกเรียด", "ม./วิ", 1, 60, 0.5],
-                      ["chip_speed", "ความเร็วแนวราบลูกชิพ", "ม./วิ", 1, 40, 0.5],
-                      ["chip_apex_height", "จุดสูงสุดลูกชิพ", "ม.", 1, 8, 0.25],
-                      ["long_ball_speed", "ความเร็วลูกเปิดยาว*", "ม./วิ", 1, 40, 0.5],
-                      ["long_ball_apex_height", "จุดสูงสุดลูกเปิดยาว*", "ม.", 1, 10, 0.25],
-                      ["defender_speed", "ความเร็วฝ่ายรับ/ผู้รักษาประตู", "ม./วิ", 1, 15, 0.5],
-                      ["attacker_speed", "ความเร็วผู้รับบอล", "ม./วิ", 1, 15, 0.5],
-                      ["reaction_time", "เวลาตอบสนองฝ่ายรับ/ผู้รักษาประตู", "วินาที", 0, 3, 0.1],
-                      ["reach_radius", "รัศมีระยะเอื้อมสกัด", "ม.", 0, 3, 0.1],
-                    ] as const).map(([key, label, unit, min, max, increment]) => (
-                      <label key={key}>
-                        <span>{label}</span>
-                        <div><input
-                          type="number"
-                          min={min}
-                          max={max}
-                          step={increment}
-                          value={parameters[key]}
-                          onChange={(event) => changeParameters({ ...parameters, [key]: Number(event.target.value) })}
-                        /><small>{unit}</small></div>
-                      </label>
-                    ))}
-                  </div>
-                  <button className="text-button" type="button" onClick={() => changeParameters(defaultParameters)}>คืนค่ามาตรฐานเริ่มต้น</button>
-                  <small className="model-note">* ค่าลูกเปิดยาวเป็นค่าทดลองจากงานศึกษา ไม่ใช่ค่ามาตรฐานสากล</small>
-                </details>
-                {activeComparison ? (
-                  <div className={`active-risk risk-${activeComparison.result.risk}`}>
-                    <div className="active-risk-header">
-                      <span>ทางเลือกปัจจุบัน · {passTypeThai[activeComparison.result.pass_type]}</span>
-                      <strong>ความเสี่ยง {activeComparison.result.risk_percent}%</strong>
-                    </div>
-                    <p>ระดับ: {riskThai[activeComparison.result.risk] ?? activeComparison.result.risk}</p>
-                    <p>{activeComparison.result.explanation}</p>
-                    <details>
-                      <summary>ดูรายละเอียดการคำนวณเชิงตัวเลข</summary>
-                      <dl>
-                        <div><dt>ระยะทางส่งบอล</dt><dd>{activeComparison.result.pass_distance.toFixed(2)} เมตร</dd></div>
-                        <div><dt>รูปแบบการส่ง</dt><dd>{passTypeThai[activeComparison.result.pass_type]}</dd></div>
-                        <div><dt>เวลาบอลเดินทาง</dt><dd>{activeComparison.result.ball_time.toFixed(3)} วินาที</dd></div>
-                        <div><dt>กองหลังที่ใกล้สกัดที่สุด</dt><dd>{activeComparison.result.interceptor_id ? activeComparison.result.interceptor_id.toUpperCase() : "ไม่มี"}</dd></div>
-                        <div><dt>ผู้รับบอลที่เร็วที่สุด</dt><dd>{activeComparison.result.receiver_id ? activeComparison.result.receiver_id.toUpperCase() : "ไม่มี"}</dd></div>
-                        <div><dt>เวลาผู้รับถึงจุด</dt><dd>{activeComparison.result.receiver_arrival_time?.toFixed(3) ?? "—"} วินาที</dd></div>
-                        <div><dt>ส่วนต่างเวลากับบอล</dt><dd>{activeComparison.result.receiver_ball_margin?.toFixed(3) ?? "—"} วินาที</dd></div>
-                        <div><dt>ส่วนต่างเวลาสกัด (Margin)</dt><dd>{activeComparison.result.minimum_margin?.toFixed(3) ?? "—"} วินาที</dd></div>
-                      </dl>
-                      <p>{activeComparison.result.disclaimer}</p>
-                    </details>
-                  </div>
-                ) : <p className="space-hint" role="status">{busy
-                  ? "กำลังคำนวณผลจำลองใหม่…"
-                  : targetMode === "receiver"
-                    ? "คลิกเลือกเพื่อนร่วมทีมเพื่อแสดงผลจำลอง"
-                    : targetMode === "space"
-                      ? "คลิกจุดพื้นที่ว่างบนสนามเพื่อแสดงผลจำลอง"
-                      : "เลือกเพื่อนร่วมทีมและคลิกจุดวิ่งบนสนามเพื่อแสดงผลจำลอง"}</p>}
-              </div>
-            ) : null}
           </aside>
         </section>
-
-        {step === 5 ? (
-          <RiskResults
-            comparisons={comparisons}
-            activeId={activeComparison?.id ?? null}
-            onSelect={selectComparison}
-            onClear={() => {
-              cancelSimulation();
-              setComparisons([]);
-              setNotice("ล้างผลแล้ว เลือกเป้าหมายเพื่อคำนวณใหม่");
-            }}
-          />
-        ) : null}
+        )}
 
       </main>
-
-      {analysisProgress !== null ? (
-        <div className="analysis-loading-backdrop" role="dialog" aria-modal="true" aria-labelledby="analysis-loading-title">
-          <div className="analysis-loading-card">
-            <div className="analysis-loader-mark" aria-hidden="true"><span /></div>
-            <span className="eyebrow">AI MATCH ANALYSIS</span>
-            <h2 id="analysis-loading-title">กำลังวิเคราะห์ภาพการแข่งขัน</h2>
-            <p>{analysisProgressLabel(analysisProgress)}</p>
-            <div
-              className="analysis-progress-track"
-              role="progressbar"
-              aria-label="ความคืบหน้าการวิเคราะห์ภาพโดยประมาณ"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(analysisProgress)}
-            >
-              <span style={{ width: `${analysisProgress}%` }} />
-            </div>
-            <div className="analysis-progress-meta">
-              <span>ความคืบหน้าโดยประมาณ</span>
-              <strong>{Math.round(analysisProgress)}%</strong>
-            </div>
-            <small>กรุณารอสักครู่ ระบบกำลังตรวจจับผู้เล่น ลูกบอล และตำแหน่งบนสนาม</small>
-          </div>
-        </div>
-      ) : null}
 
       {showGuide ? (
         <div className="modal-backdrop" onClick={() => setShowGuide(false)} role="dialog" aria-modal="true" aria-labelledby="guide-title">
@@ -1204,14 +1072,14 @@ function App() {
                     <span className="step-num">05</span>
                     <h4>จำลอง & เปรียบเทียบทางเลือก</h4>
                   </div>
-                  <p>เลือกเพื่อนร่วมทีมเพื่อส่งบอลเข้าเท้า หรือคลิกพื้นที่ว่างบนสนามเพื่อส่งบอลเข้าที่ว่าง/แทงทะลุช่อง สลับประเภทบอล (ลูกเรียด/ลูกชิพ/เปิดยาว) และเปรียบเทียบได้สูงสุด 3 ทางเลือก</p>
+                  <p>หน้าเริ่มต้นแสดงภาพการแข่งขันจริงเหมือนเดิม คลิกเพื่อนร่วมทีมเพื่อส่งเข้าเท้าหรือคลิกพื้นที่ว่างได้ทันที และสลับไปดูสนาม 2D/ดูคู่กันเพื่อเทียบเส้นทาง A, B และ C ได้สูงสุด 3 ทางเลือก</p>
                 </div>
               </div>
 
               <div className="guide-notice-box">
                 <strong>ความเข้าใจเกี่ยวกับ “ดัชนีความเสี่ยง (Pass Interception Risk)”</strong>
                 <p>
-                  เปอร์เซ็นต์ความเสี่ยง 0–100% เป็นดัชนีคำนวณจากแบบจำลองคิเนมาติกส์ทางฟิสิกส์ (เวลาที่บอลเดินทางเทียบกับเวลาที่ฝ่ายตรงข้ามวิ่งเข้าสกัดบอล) <em>ไม่ใช่ความน่าจะเป็นจากสถิติ และไม่ใช่ AI คาดเดาอนาคต</em> เพื่อให้การวิเคราะห์แท็กติกมีความโปร่งใสและตรวจสอบตัวแปรได้
+                  คะแนนความเสี่ยง 0–100 เป็นดัชนีจากแบบจำลองคิเนมาติกส์ทางฟิสิกส์ (เวลาที่บอลเดินทางเทียบกับเวลาที่ฝ่ายตรงข้ามวิ่งเข้าสกัดบอล) <em>ไม่ใช่เปอร์เซ็นต์ความน่าจะเป็นจากข้อมูลการแข่งขันจริง</em> เพื่อให้การวิเคราะห์แท็กติกมีความโปร่งใสและตรวจสอบตัวแปรได้
                 </p>
               </div>
             </div>
@@ -1228,4 +1096,5 @@ function App() {
 }
 
 export default App;
+
 
