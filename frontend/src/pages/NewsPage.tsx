@@ -17,10 +17,27 @@ export function NewsPage({ onAnalyze }: NewsPageProps) {
       </section>
       <div className="dossier-filters"><button type="button" className="active">ทั้งหมด</button><button type="button">จ่ายพลาด</button><button type="button">แทงทะลุช่อง</button><button type="button">แนวรับ</button><button type="button">มุมกล้อง</button></div>
       <section className="featured-case section-rule">
-        <span>กรณีตัวอย่าง</span>
-        <h2>จังหวะที่ดูเหมือนมีช่องจ่าย อาจปิดลงก่อนบอลเดินทางถึงหรือไม่?</h2>
-        <p>เปรียบเทียบสิ่งที่มุมถ่ายทอดทำให้เราเห็น กับตำแหน่งบนสนามและเวลาที่ฝ่ายรับเข้าถึงแนวบอล</p>
-        <div className="case-comparison"><TelemetryFrame compact label="ภาพการแข่งขัน" /><div><TelemetryFrame analyzed compact label="หลังเทียบพิกัดสนาม" /><p><strong>สิ่งที่คำนวณได้</strong> การวัดนี้อธิบายระยะและเวลา ส่วนการตัดสินใจยังขึ้นกับบริบทของเกม</p><button type="button" onClick={onAnalyze}>เปิดจังหวะนี้ใน Analysis →</button></div></div>
+        <span>JAPAN 0–0 SPAIN · 08:14</span>
+        <h2>จังหวะแทงช่องด้านซ้าย: พื้นที่ว่างเปิดอยู่จริงนานแค่ไหน?</h2>
+        <p>เทียบภาพก่อนจ่ายกับผลวิเคราะห์บนภาพเดียวกัน เพื่อดูระยะทาง เวลาบอลเดินทาง และผู้เล่นฝ่ายรับที่เข้าใกล้แนวบอลที่สุด</p>
+        <div className="match-case-comparison">
+          <figure>
+            <div className="match-case-label"><span>01</span><strong>ภาพจังหวะก่อนจ่าย</strong></div>
+            <img src="/spain-japan-through-ball-source.png" alt="จังหวะสเปนครองบอลก่อนแทงช่องในเกมพบญี่ปุ่น" />
+            <figcaption>ภาพการแข่งขันก่อนกำหนดผู้ครองบอลและเป้าหมายการจ่าย</figcaption>
+          </figure>
+          <div className="match-case-analysis">
+            <figure>
+              <div className="match-case-label"><span>02</span><strong>ผลหลังเลือกพื้นที่เป้าหมาย</strong></div>
+              <img src="/spain-japan-through-ball-analysis.png" alt="ผลวิเคราะห์จังหวะแทงช่องของสเปนพร้อมเส้นทางและคะแนนความเสี่ยง" />
+              <figcaption>แสดงเส้นทาง จุดเสี่ยงถูกสกัด และรายละเอียดของทางเลือกที่เลือก</figcaption>
+            </figure>
+            <div className="match-case-summary">
+              <p><strong>สิ่งที่คำนวณได้</strong> ทางเลือก A เป็นการจ่ายเข้าพื้นที่ด้านซ้าย ระบบแสดงคะแนนความเสี่ยง ระยะทาง เวลาบอลเดินทาง และผู้เล่นที่อยู่ใกล้แนวบอลที่สุด โดยไม่สรุปแทนผู้ใช้ว่าควรจ่ายหรือไม่</p>
+              <div><a href="https://www.youtube.com/watch?v=DtzIyXc56f4" target="_blank" rel="noreferrer">ดูคลิปต้นทาง ↗</a><button type="button" onClick={onAnalyze}>ลองวิเคราะห์จังหวะอื่น →</button></div>
+            </div>
+          </div>
+        </div>
       </section>
       <section className="case-repository section-rule">
         <div className="section-heading-editorial"><div><span>กรณีตัวอย่าง</span><h2>ลองตรวจจังหวะถกเถียงด้วยพิกัดสนาม</h2></div><small>ผลลัพธ์เป็นการจำลองจากค่าที่กำหนด</small></div>
