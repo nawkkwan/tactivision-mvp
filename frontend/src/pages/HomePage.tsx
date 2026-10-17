@@ -1,8 +1,9 @@
-import { TelemetryFrame } from "../components/TelemetryFrame";
+import { MatchComparison, MatchStories } from "../components/MatchStories";
 
 interface HomePageProps {
   onAnalyze: () => void;
   onResearch: () => void;
+  onNews: () => void;
 }
 
 const debateRows = [
@@ -11,7 +12,7 @@ const debateRows = [
   ["03", "ทางเลือกที่ปลอดภัยที่สุด อาจไม่ใช่ทางเลือกที่สร้างเกมที่สุด", "คะแนนต่ำสุดหมายถึงเสี่ยงถูกสกัดต่ำสุดในชุดนั้น ระบบจึงแสดงทางเลือกคู่กันโดยไม่สรุปแทนโค้ชว่าทางใดดีที่สุด"],
 ];
 
-export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
+export function HomePage({ onAnalyze, onResearch, onNews }: HomePageProps) {
   return (
     <main className="editorial-page home-page">
       <section className="home-hero">
@@ -42,10 +43,7 @@ export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
           <div><span>ก่อนและหลังวิเคราะห์</span><h2>เปรียบเทียบภาพการแข่งขัน กับเส้นทางการจ่ายบอลบนพิกัดสนาม</h2></div>
           <small>ภาพตัวอย่างสำหรับอธิบายการแสดงผล</small>
         </div>
-        <div className="before-after-grid">
-          <TelemetryFrame compact label="ภาพการแข่งขัน" />
-          <TelemetryFrame analyzed compact label="หลังวิเคราะห์เส้นทาง" />
-        </div>
+        <MatchComparison />
       </section>
 
       <section className="debate-section section-rule">
@@ -61,25 +59,33 @@ export function HomePage({ onAnalyze, onResearch }: HomePageProps) {
       </section>
 
       <section className="case-section">
-        <span>จังหวะถกเถียงจากเกมจริง</span>
-        <h2>จากกระแสไวรัลออนไลน์ สู่ภาพเวกเตอร์ที่คนหยิบไปคุยต่อได้</h2>
-        <p>นำจังหวะที่คนเห็นต่างมาจัดวางบนสนามมาตรฐาน แล้วแยกสิ่งที่ระบบคำนวณออกจากข้อสรุปทางแท็กติกอย่างชัดเจน</p>
-        <TelemetryFrame analyzed label="ตัวอย่างการเปรียบเทียบเส้นทาง" />
-        <div className="case-opinions">
-          <article><h3>จังหวะนี้ควรเล่นปลอดภัยหรือเร่งเกม?</h3><p>ระบบแสดงเส้นทางและเวลาให้เทียบกัน ส่วนคุณค่าทางแท็กติกยังเป็นการตัดสินใจของทีมงาน</p></article>
-          <article><h3>คะแนนต่ำกว่า หมายถึงทางเลือกดีกว่าเสมอหรือไม่?</h3><p>ไม่เสมอ คะแนนนี้วัดเฉพาะความเสี่ยงถูกสกัดภายใต้สมมติฐาน ไม่ได้วัดคุณค่าการบุกทั้งหมด</p></article>
-        </div>
+        <span>COMMUNITY DEBATES · NEWS & BREAKDOWNS</span>
+        <h2>จากจังหวะที่คนเห็นต่าง สู่ภาพวิเคราะห์ที่หยิบไปคุยต่อได้</h2>
+        <p>ดูภาพก่อนและหลังวิเคราะห์ พร้อมคลิปต้นทางของทั้งสองจังหวะ</p>
+        <MatchStories onAnalyze={onAnalyze} />
+        <button className="stories-link" type="button" onClick={onNews}>อ่านข่าวและจังหวะวิเคราะห์ทั้งหมด →</button>
       </section>
 
       <section className="boundary-section section-rule">
-        <article><h2>ระบบคำนวณอะไร</h2><ol><li>ระยะทางการจ่ายบอล</li><li>เวลาบอลเดินทาง</li><li>เวลาที่ฝ่ายรับเข้าถึงแนวบอล</li><li>จุดเสี่ยงถูกสกัด</li><li>คะแนนความเสี่ยง 0–100</li></ol></article>
-        <article><h2>ระบบไม่ได้อ้างว่าอะไร</h2><ul><li>ไม่ใช่เปอร์เซ็นต์ความสำเร็จจากข้อมูลการแข่งขันจริง</li><li>ไม่ได้ตัดสินทางเลือกที่ดีที่สุดทางแท็กติก</li><li>ไม่แทนประสบการณ์ของโค้ช</li><li>ผลลัพธ์ขึ้นกับการเทียบพิกัดและค่าความเร็วที่กำหนด</li></ul></article>
+        <article><header><h2>ระบบคำนวณอะไร</h2><span>DETERMINISTIC METRICS</span></header><p>ข้อมูลสำหรับเปรียบเทียบเส้นทาง ภายใต้ตำแหน่งและสมมติฐานที่กำหนด</p><ol>
+          <li><strong>ระยะทางการจ่ายบอล:</strong> คำนวณจากพิกัดสนามที่เทียบกับภาพ</li>
+          <li><strong>เวลาบอลเดินทาง:</strong> ประมาณจากระยะทางและความเร็วบอล</li>
+          <li><strong>เวลาที่ฝ่ายรับเข้าถึงแนวบอล:</strong> อิงความเร็วและเวลาตอบสนอง</li>
+          <li><strong>จุดเสี่ยงถูกสกัด:</strong> ตำแหน่งบนเส้นทางที่ฝ่ายรับอาจเข้าถึงบอล</li>
+          <li><strong>คะแนนความเสี่ยง 0–100:</strong> ใช้เปรียบเทียบทางเลือกภายใต้ค่าชุดเดียวกัน</li>
+        </ol></article>
+        <article><header><h2>ระบบไม่ได้อ้างว่าอะไร</h2><span>METHOD BOUNDARIES</span></header><p>ข้อจำกัดที่ควรใช้ประกอบการอ่านผล</p><ul>
+          <li><strong>ไม่ใช่เปอร์เซ็นต์ความสำเร็จจริง:</strong> คะแนนไม่ได้ผ่านการปรับเทียบจากผลการจ่ายบอลจริง</li>
+          <li><strong>ไม่ได้ตัดสินทางเลือกที่ดีที่สุด:</strong> ความเสี่ยงต่ำอาจไม่ใช่ทางเลือกที่สร้างโอกาสบุกมากที่สุด</li>
+          <li><strong>ไม่แทนประสบการณ์ของโค้ช:</strong> บริบทเกมและแผนทีมยังเป็นส่วนสำคัญ</li>
+          <li><strong>ผลขึ้นกับภาพและค่าที่กำหนด:</strong> การเทียบพิกัดและสมมติฐานความเร็วส่งผลต่อคะแนน</li>
+        </ul></article>
       </section>
 
       <section className="home-cta">
-        <div><h2>มีจังหวะที่ทีมคุณยังถกเถียงกันอยู่หรือไม่?</h2><p>เปลี่ยนภาพหนึ่งจังหวะให้เป็นบทสนทนาที่ตรวจสอบระยะ เวลา และสมมติฐานได้</p></div>
+        <div><span>READY TO MAP YOUR SQUAD?</span><h2>มีจังหวะที่ทีมคุณยังถกเถียงกันอยู่หรือไม่?</h2><p>เปลี่ยนภาพหนึ่งจังหวะให้เป็นบทสนทนาที่ตรวจสอบระยะ เวลา และสมมติฐานได้</p></div>
         <button type="button" onClick={onAnalyze}>เริ่มวิเคราะห์</button>
-        <button type="button" className="inverse-link" onClick={onResearch}>อ่านวิธีคำนวณ →</button>
+        <button type="button" className="inverse-link" onClick={onNews}>อ่านข่าวและบทวิเคราะห์ →</button>
       </section>
     </main>
   );

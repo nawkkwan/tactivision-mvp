@@ -41,7 +41,7 @@ export default function Root() {
   return (
     <div className={`site-shell route-${route === "/" ? "home" : route.slice(1)}`}>
       <SiteHeader route={route} onNavigate={navigate} />
-      {route === "/" ? <HomePage onAnalyze={() => navigate("/analyze")} onResearch={() => navigate("/research")} /> : null}
+      {route === "/" ? <HomePage onAnalyze={() => navigate("/analyze")} onResearch={() => navigate("/research")} onNews={() => navigate("/news")} /> : null}
       {route === "/analyze" ? <AnalysisApp /> : null}
       {route === "/news" ? <NewsPage onAnalyze={() => navigate("/analyze")} /> : null}
       {route === "/research" ? <ResearchPage /> : null}
