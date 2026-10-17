@@ -640,6 +640,53 @@ function App() {
 
   const errorLevel = calibrationErrorLevel(analysis?.calibration.reprojection_error ?? null);
 
+  function renderLandmarkCategoryControls() {
+    return (
+      <section className="visual-landmark-selector" aria-label="เลือกจุดอ้างอิงสำหรับ Manual Calibration">
+        <header>
+          <div><span className="eyebrow">MANUAL CALIBRATION</span><h3>เลือกจุดอ้างอิงที่มองเห็นในภาพ</h3></div>
+          <p>เลือกอย่างน้อย 4 จุด แล้วคลิกตำแหน่งเดียวกันบนภาพการแข่งขันด้านบน</p>
+        </header>
+        <div className="landmark-categories">
+          {landmarkGroups.map((group) => {
+            const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
+            const selectedCount = groupLandmarks.filter((landmark) =>
+              calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark)),
+            ).length;
+            return (
+              <details className="landmark-category" key={group.title} open={group.title === "วงกลมกลางสนาม"}>
+                <summary><span>{group.title}</span><small>{selectedCount}/{groupLandmarks.length}</small></summary>
+                <div className="landmark-grid">
+                  {groupLandmarks.map((landmark) => {
+                    const completed = calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark));
+                    return (
+                      <button
+                        type="button"
+                        key={landmark.label}
+                        className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
+                        aria-pressed={pendingLandmark?.label === landmark.label}
+                        disabled={busy}
+                        onClick={() => setPendingLandmark(landmark)}
+                      >
+                        <span>{completed ? "✓" : landmark.code}</span>{landmark.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </details>
+            );
+          })}
+        </div>
+        <footer>
+          <p className="counter">เลือกแล้ว {calibrationPairs.length}/4 จุดขั้นต่ำ</p>
+          <button className="primary-button" type="button" disabled={busy || calibrationPairs.length < 4} onClick={() => void submitManualCalibration()}>
+            คำนวณ Manual Calibration <span>→</span>
+          </button>
+        </footer>
+      </section>
+    );
+  }
+
   return (
     <div className="analysis-page">
       <main id="top" className="analysis-main">
@@ -720,6 +767,7 @@ function App() {
               onDetectionClick={handleDetectionClick}
               onCanvasClick={handleCanvasClick}
             />
+            {step === 3 && analysis && manualMode ? renderLandmarkCategoryControls() : null}
             {step === 3 && analysis?.calibration.status === "success" && !manualMode ? (
               <div className="calibration-image-action">
                 <div>
@@ -729,7 +777,7 @@ function App() {
                 <button className="primary-button" type="button" onClick={acceptCalibration}>ใช้ผลพิกัดสนามนี้และไปต่อ <span>→</span></button>
               </div>
             ) : null}
-            {analysis && step >= 3 && analysis.calibration.status === "success" ? (
+            {analysis && step >= 3 && analysis.calibration.status === "success" && !manualMode ? (
               <FieldMap
                 detections={analysis.detections}
                 carrierId={carrierId}
@@ -906,48 +954,6 @@ function App() {
                         </ol>
                       </section>
                     ) : null}
-                    <div className="landmark-categories">
-                      {landmarkGroups.map((group) => {
-                        const groupLandmarks = landmarks.filter((landmark) => landmark.group === group.title);
-                        const selectedCount = groupLandmarks.filter((landmark) =>
-                          calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark)),
-                        ).length;
-                        return (
-                          <details className="landmark-category" key={group.title} open={group.title === "วงกลมกลางสนาม"}>
-                            <summary>
-                              <span>{group.title}</span>
-                              <small>{selectedCount}/{groupLandmarks.length}</small>
-                            </summary>
-                            <div className="landmark-grid">
-                              {groupLandmarks.map((landmark) => {
-                                const completed = calibrationPairs.some((pair) => hasCalibrationPair(pair, landmark));
-                                return (
-                                  <button
-                                    type="button"
-                                    key={landmark.label}
-                                    className={`${pendingLandmark?.label === landmark.label ? "pending" : ""} ${completed ? "completed" : ""}`}
-                                    aria-pressed={pendingLandmark?.label === landmark.label}
-                                    disabled={busy}
-                                    onClick={() => setPendingLandmark(landmark)}
-                                  >
-                                    <span>{completed ? "✓" : landmark.code}</span>{landmark.label}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </details>
-                        );
-                      })}
-                    </div>
-                    <p className="counter">เลือกแล้ว {calibrationPairs.length}/4 จุดขั้นต่ำ</p>
-                    <button
-                      className="primary-button"
-                      type="button"
-                      disabled={busy || calibrationPairs.length < 4}
-                      onClick={() => void submitManualCalibration()}
-                    >
-                      คำนวณ Manual Calibration
-                    </button>
                     {analysis.calibration.status === "success" ? (
                       <button className="text-button" type="button" onClick={() => setManualMode(false)}>
                         กลับไปใช้ผลเดิม
