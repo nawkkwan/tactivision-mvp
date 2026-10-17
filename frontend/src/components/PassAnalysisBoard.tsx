@@ -110,7 +110,14 @@ export function PassAnalysisBoard({
         onDetectionClick={onDetectionClick}
         onCanvasClick={onCanvasClick}
       />
-      <p>คลิกเพื่อนร่วมทีมเพื่อส่งเข้าเท้า หรือคลิกพื้นที่สนามเพื่อสร้างทางเลือกใหม่</p>
+      <div className="board-image-help" aria-label="วิธีใช้งานภาพการแข่งขัน">
+        <span className="eyebrow">ทำอะไรบนภาพนี้ได้บ้าง</span>
+        <div>
+          <article><b>คลิกเพื่อนร่วมทีม</b><small>คำนวณการส่งเข้าเท้าของผู้เล่นคนนั้นทันที</small></article>
+          <article><b>คลิกพื้นที่ว่าง</b><small>สร้างทางเลือกการจ่ายบอลเข้าสู่พื้นที่เป้าหมาย</small></article>
+          <article><b>เลือก A / B / C</b><small>ดูเส้นทางและรายละเอียดของทางเลือกที่ต้องการ</small></article>
+        </div>
+      </div>
     </div>
   );
 
