@@ -32,6 +32,18 @@ const defaultParameters: SimulationParameters = {
   sample_step: 0.5,
 };
 
+const passTypeThai: Record<PassType, string> = {
+  ground: "ลูกเรียด",
+  chip: "ลูกชิพ",
+  long_ball: "ลูกเปิดยาว",
+};
+
+const riskThai: Record<string, string> = {
+  low: "ความเสี่ยงต่ำ",
+  medium: "ความเสี่ยงปานกลาง",
+  high: "ความเสี่ยงสูง",
+};
+
 const landmarkGroups = [
   {
     title: "เส้นขอบและเส้นแบ่งครึ่งสนาม",
@@ -180,6 +192,7 @@ function App() {
   const [manualMode, setManualMode] = useState(false);
   const [pendingLandmark, setPendingLandmark] = useState<(typeof landmarks)[number] | null>(null);
   const [calibrationPairs, setCalibrationPairs] = useState<CalibrationPair[]>([]);
+  const [showGuide, setShowGuide] = useState(false);
   const [candidateCarrierId, setCandidateCarrierId] = useState<string | null>(null);
   const [carrierId, setCarrierId] = useState<string | null>(null);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
@@ -579,10 +592,10 @@ function App() {
   }
 
   const statusLabel = busy
-    ? "กำลังประมวลผล"
+    ? "กำลังประมวลผล…"
     : analysis
-      ? `${analysis.detector.model} · ${analysis.detector.mode === "fine_tuned" ? "Fine-tuned" : isFixture ? "Sample fixture" : "Generic"}`
-      : "พร้อมเริ่มวิเคราะห์";
+      ? `${analysis.detector.model} · ${analysis.detector.mode === "fine_tuned" ? "โมเดลจำเพาะ (Fine-tuned)" : isFixture ? "ชุดข้อมูลตัวอย่าง" : "โมเดลมาตรฐาน"}`
+      : "พร้อมเริ่มต้นวิเคราะห์";
   const errorLevel = calibrationErrorLevel(analysis?.calibration.reprojection_error ?? null);
 
   return (
@@ -590,21 +603,38 @@ function App() {
       <header className="topbar">
         <a className="brand" href="#top" aria-label="TactiVision หน้าหลัก">
           <span className="brand-mark">TV</span>
-          <span><strong>TactiVision</strong><small>PASS INTERCEPTION LAB</small></span>
+          <span><strong>TactiVision</strong><small>ระบบวิเคราะห์แท็กติกและจำลองการจ่ายบอล</small></span>
         </a>
-        <div className="status-pill"><i className={busy ? "pulse" : ""} />{statusLabel}</div>
+        <div className="topbar-actions">
+          <div className="status-pill"><i className={busy ? "pulse" : ""} />{statusLabel}</div>
+          <button
+            type="button"
+            className="guide-button"
+            onClick={() => setShowGuide(true)}
+            aria-label="เปิดคู่มือการใช้งานเว็บไซต์"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+            <span>คู่มือการใช้งานเว็บไซต์</span>
+          </button>
+        </div>
       </header>
 
       <main id="top">
-        <section className="hero">
-          <div>
-            <span className="eyebrow">STATIC FRAME · TACTICAL DECISION SUPPORT</span>
-            <h1>มองเห็นทางเลือก<br /><em>ก่อนบอลจะเคลื่อนที่</em></h1>
+        <section className="tool-header">
+          <div className="tool-title-wrap">
+            <span className="tool-badge">TACTICAL PASS ANALYSIS</span>
+            <h1>ระบบวิเคราะห์และจำลองความเสี่ยงในการจ่ายบอล</h1>
+            <p>
+              ประเมินทางเลือกการส่งบอลจากภาพนิ่งจังหวะการแข่งขัน • คำนวณความเสี่ยงในการถูกตัดบอลบนระนาบสนามจริง 105 × 68 เมตร ด้วยโมเดลคิเนมาติกส์
+            </p>
           </div>
-          <p>
-            วิเคราะห์แนวจ่ายบอลจากภาพนิ่ง เปรียบเทียบผู้รับและพื้นที่ว่าง
-            ด้วยพิกัดสนามจริงและสมมติฐานที่ตรวจสอบได้
-          </p>
+          <div className="tool-meta-badge">
+            <span className="meta-label">มาตรฐานสนาม</span>
+            <span className="meta-value">FIFA 105 × 68 ม.</span>
+          </div>
         </section>
 
         <StepRail current={step} maxStep={maxStep} onStep={(nextStep) => {
@@ -612,7 +642,7 @@ function App() {
           setStep(nextStep);
         }} />
 
-        {error ? <div className="alert error-alert" role="alert"><strong>ตรวจสอบอีกครั้ง</strong>{error}</div> : null}
+        {error ? <div className="alert error-alert" role="alert"><strong>ข้อความแจ้งเตือน: </strong>{error}</div> : null}
         {notice ? <div className="alert notice-alert" role="status">{notice}</div> : null}
 
         <section className="workspace-grid">
@@ -640,10 +670,10 @@ function App() {
               />
             ) : null}
             <div className="legend">
-              <span><i className="dot team-a" />Team A</span>
-              <span><i className="dot team-b" />Team B</span>
-              <span><i className="dot target-dot" />Pass target</span>
-              <span><i className="cross">×</i>Interception point</span>
+              <span><i className="dot team-a" />ทีม A (สีฟ้า)</span>
+              <span><i className="dot team-b" />ทีม B (สีแดง)</span>
+              <span><i className="dot target-dot" />เป้าหมายส่งบอล</span>
+              <span><i className="cross">×</i>จุดเสี่ยงถูกสกัด</span>
             </div>
           </div>
 
@@ -651,9 +681,9 @@ function App() {
             {step === 1 ? (
               <div className="panel-content intro-panel">
                 <span className="panel-number">01</span>
-                <span className="eyebrow">START A NEW FRAME</span>
+                <span className="eyebrow">ขั้นตอนที่ 1</span>
                 <h2>เลือกภาพการแข่งขัน</h2>
-                <p>ใช้ภาพมุมถ่ายทอดกว้างที่เห็นผู้เล่นและเส้นสนามชัด รองรับ JPEG, PNG และ WebP สูงสุด 10 MB</p>
+                <p>เลือกภาพมุมกว้างที่เห็นผู้เล่นและเส้นสนามชัดเจน รองรับไฟล์ JPEG, PNG และ WebP ขนาดไม่เกิน 10 MB</p>
                 <input
                   ref={fileInput}
                   className="sr-only"
@@ -666,24 +696,24 @@ function App() {
                   }}
                 />
                 <button className="primary-button" type="button" disabled={busy} onClick={() => fileInput.current?.click()}>
-                  อัปโหลดภาพจริง <span>→</span>
+                  อัปโหลดภาพจริงจากเครื่อง <span>→</span>
                 </button>
                 <button className="secondary-button" type="button" disabled={busy} onClick={loadDemo}>
-                  ลองฉากตัวอย่าง
+                  ลองฉากตัวอย่าง (ไม่ต้องใช้ภาพ)
                 </button>
-                <small>ฉากตัวอย่างใช้ Fixture ที่ระบุชัดเจน ไม่ใช่ผล Detection จาก AI</small>
+                <small>ฉากตัวอย่างใช้ชุดข้อมูลจำลองเพื่อทดสอบระบบ โดยไม่ต้องเชื่อมต่อโมเดล AI ตรวจจับ</small>
               </div>
             ) : null}
 
             {step === 2 && analysis ? (
               <div className="panel-content">
                 <span className="panel-number">02</span>
-                <span className="eyebrow">VERIFY BEFORE ANALYSIS</span>
+                <span className="eyebrow">ขั้นตอนที่ 2</span>
                 <h2>ตรวจผู้เล่นและทีม</h2>
-                <p>แก้ Class หรือ Team ID เมื่อ AI แบ่งผิด และลบลูกบอลที่ตรวจจับเกินมาได้ ผู้รักษาประตูอาจมีสีเสื้อต่างจากเพื่อนร่วมทีม</p>
+                <p>ตรวจสอบความถูกต้องของนักเตะ สลับบทบาทหรือทีมหาก AI จัดกลุ่มผิด และลบตำแหน่งลูกบอลที่เกินมาได้</p>
                 <DetectionReview detections={analysis.detections} onUpdate={updateDetection} onRemove={removeDetection} />
                 <button className="primary-button" type="button" onClick={continueToCalibration}>
-                  ยืนยันผู้เล่นและทีม <span>→</span>
+                  ยืนยันผู้เล่นและไปเทียบพิกัดสนาม <span>→</span>
                 </button>
               </div>
             ) : null}
@@ -691,25 +721,28 @@ function App() {
             {step === 3 && analysis ? (
               <div className="panel-content">
                 <span className="panel-number">03</span>
-                <span className="eyebrow">PIXELS → METRES</span>
-                <h2>Calibration สนาม</h2>
+                <span className="eyebrow">ขั้นตอนที่ 3 · พิกเซลภาพ ➔ พิกัดสนามเมตร</span>
+                <h2>เทียบพิกัดสนาม (105 × 68 ม.)</h2>
                 <div className={`calibration-card ${analysis.calibration.status}`}>
-                  <div><strong>{analysis.calibration.method.toUpperCase()}</strong><span>{Math.round(analysis.calibration.confidence * 100)}%</span></div>
+                  <div>
+                    <strong>{analysis.calibration.method === "auto" ? "เทียบพิกัดอัตโนมัติ" : "กำหนดจุดด้วยตนเอง"}</strong>
+                    <span>ความเชื่อมั่น {Math.round(analysis.calibration.confidence * 100)}%</span>
+                  </div>
                   <p>{analysis.calibration.message}</p>
                   {analysis.calibration.reprojection_error !== null && errorLevel ? (
                     <div className={`reprojection-status ${errorLevel.className}`}>
-                      <span>Reprojection error</span>
-                      <strong>{analysis.calibration.reprojection_error.toFixed(2)} m · {errorLevel.label}</strong>
+                      <span>ความคลาดเคลื่อนพิกัดเฉลี่ย:</span>
+                      <strong>{analysis.calibration.reprojection_error.toFixed(2)} เมตร ({errorLevel.label})</strong>
                     </div>
                   ) : null}
                 </div>
                 {!manualMode && analysis.calibration.status === "success" ? (
                   <>
                     <button className="primary-button" type="button" onClick={acceptCalibration}>
-                      ใช้ผล Calibration นี้ <span>→</span>
+                      ใช้ผลพิกัดสนามนี้และไปต่อ <span>→</span>
                     </button>
                     <button className="text-button" type="button" onClick={() => setManualMode(true)}>
-                      กำหนดจุดด้วยตนเองแทน
+                      ต้องการเลือกจุดเทียบสนามด้วยตนเอง
                     </button>
                   </>
                 ) : (
@@ -860,18 +893,18 @@ function App() {
             {step === 4 && analysis ? (
               <div className="panel-content carrier-panel">
                 <span className="panel-number">04</span>
-                <span className="eyebrow">LOCK THE ORIGIN</span>
-                <h2>ยืนยันคนครองบอล</h2>
+                <span className="eyebrow">ขั้นตอนที่ 4</span>
+                <h2>ระบุผู้เล่นครองบอล</h2>
                 <p>{analysis.detections.some((item) => item.class_name === "ball")
-                  ? "ระบบเสนอผู้เล่นที่ใกล้ลูกบอลที่สุด คลิกกรอบคนอื่นได้หากคำแนะนำไม่ตรงกับจังหวะจริง"
-                  : "ไม่มีลูกบอลที่ตรวจพบ กรุณาคลิกกรอบผู้เล่นบนภาพเพื่อเลือกคนครองบอลด้วยตนเอง"}</p>
+                  ? "ระบบเสนอผู้เล่นที่อยู่ใกล้ลูกบอลที่สุดให้อัตโนมัติ สามารถคลิกกรอบผู้เล่นคนอื่นบนภาพได้หากคำแนะนำไม่ตรงกับจังหวะจริง"
+                  : "ไม่พบตำแหน่งลูกบอลที่ชัดเจน กรุณาคลิกเลือกผู้เล่นบนภาพเพื่อระบุคนครองบอลด้วยตนเอง"}</p>
                 <div className="carrier-choice">
-                  <span>ผู้เล่นที่เลือก</span>
-                  <strong>{candidate?.id ?? "ยังไม่ได้เลือก"}</strong>
-                  <small>{candidate ? `${candidate.team_id?.replace("team_", "Team ").toUpperCase()} · ${candidate.class_name}` : "คลิกผู้เล่นบนภาพ"}</small>
+                  <span>ผู้เล่นที่เลือกครองบอล</span>
+                  <strong>{candidate ? candidate.id.toUpperCase() : "ยังไม่ได้เลือก"}</strong>
+                  <small>{candidate ? `${candidate.team_id === "team_a" ? "ทีม A (สีฟ้า)" : candidate.team_id === "team_b" ? "ทีม B (สีแดง)" : "ยังไม่ระบุทีม"} · ${candidate.class_name === "goalkeeper" ? "ผู้รักษาประตู" : "ผู้เล่นทั่วไป"}` : "คลิกผู้เล่นบนภาพเพื่อเลือก"}</small>
                 </div>
                 <button className="primary-button" type="button" disabled={!candidate} onClick={confirmCarrier}>
-                  ล็อก Ball Carrier <span>→</span>
+                  ยืนยันผู้เล่นครองบอลคนนี้ <span>→</span>
                 </button>
               </div>
             ) : null}
@@ -879,39 +912,43 @@ function App() {
             {step === 5 && analysis ? (
               <div className="panel-content simulation-panel">
                 <span className="panel-number">05</span>
-                <span className="eyebrow">COMPARE PASS OPTIONS</span>
-                <h2>เลือกเป้าหมาย</h2>
-                <p>เลือกผู้รับหรือจุดบนสนาม แล้วเปลี่ยนรูปแบบการจ่ายเพื่อคำนวณเป้าหมายเดิมใหม่ได้ทันที โดยไม่รัน Detection ซ้ำ</p>
-                <div className="locked-carrier"><span>Ball Carrier</span><strong>{carrierId}</strong><i>LOCKED</i></div>
+                <span className="eyebrow">ขั้นตอนที่ 5</span>
+                <h2>เลือกเป้าหมาย & จำลองทางเลือก</h2>
+                <p>เลือกผู้รับหรือจุดบนสนาม และสลับรูปแบบวิถีบอลเพื่อประเมินความเสี่ยงได้ทันที โดยไม่ต้องรันโมเดลตรวจจับซ้ำ</p>
+                <div className="locked-carrier">
+                  <span>ผู้เล่นครองบอล:</span>
+                  <strong>{carrierId?.toUpperCase()}</strong>
+                  <i>ล็อกแล้ว</i>
+                </div>
                 <div className="simulation-choices">
-                  <span>รูปแบบการจ่าย</span>
-                  <div className="segmented-control" role="group" aria-label="รูปแบบการจ่ายบอล">
+                  <span>รูปแบบวิถีการจ่ายบอล</span>
+                  <div className="segmented-control" role="group" aria-label="รูปแบบวิถีการจ่ายบอล">
                     <button type="button" aria-pressed={passType === "ground"} onClick={() => changePassType("ground")}>
-                      <strong>GROUND</strong><small>ลูกเรียด</small>
+                      <strong>ลูกเรียด</strong><small>บอลเลียดพื้น</small>
                     </button>
                     <button type="button" aria-pressed={passType === "chip"} onClick={() => changePassType("chip")}>
-                      <strong>CHIP</strong><small>ลูกชิพ</small>
+                      <strong>ลูกชิพ</strong><small>ลอยโค้งข้ามตัว</small>
                     </button>
                     <button type="button" aria-pressed={passType === "long_ball"} onClick={() => changePassType("long_ball")}>
-                      <strong>LONG</strong><small>เปิดยาว</small>
+                      <strong>ลูกเปิดยาว</strong><small>บอลโด่งพุ่งไกล</small>
                     </button>
                   </div>
                   <span>ประเภทเป้าหมาย</span>
                   <div className="segmented-control" role="group" aria-label="ประเภทเป้าหมาย">
                     <button type="button" aria-pressed={targetMode === "receiver"} onClick={() => changeTargetMode("receiver")}>
-                      <strong>PLAYER</strong><small>ส่งให้เพื่อน</small>
+                      <strong>ส่งเข้าเท้าเพื่อน</strong><small>ส่งให้เพื่อนร่วมทีม</small>
                     </button>
                     <button type="button" aria-pressed={targetMode === "space"} onClick={() => changeTargetMode("space")}>
-                      <strong>SPACE</strong><small>จ่ายเข้าที่ว่าง</small>
+                      <strong>จ่ายเข้าพื้นที่ว่าง</strong><small>คลิกจุดบนสนาม</small>
                     </button>
                     <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => changeTargetMode("through_ball")}>
-                      <strong>THROUGH</strong><small>แทงทะลุช่อง</small>
+                      <strong>แทงทะลุช่อง</strong><small>เพื่อนวิ่งไปรับจุดว่าง</small>
                     </button>
                   </div>
                 </div>
                 {targetMode !== "space" ? (
-                  <div className="receiver-shortcuts" aria-label="รายชื่อผู้รับบอลในทีม">
-                    <span>{targetMode === "through_ball" ? "เลือกเพื่อนที่จะวิ่งรับบอล" : "เลือกผู้รับในทีม"}</span>
+                  <div className="receiver-shortcuts" aria-label="รายชื่อเพื่อนร่วมทีมที่รับบอลได้">
+                    <span>{targetMode === "through_ball" ? "เลือกเพื่อนร่วมทีมที่จะวิ่งไปรับบอล:" : "คลิกเลือกเพื่อนร่วมทีมที่จะรับบอล:"}</span>
                     <div>
                       {analysis.detections
                         .filter((item) => {
@@ -930,28 +967,28 @@ function App() {
                             aria-pressed={targetMode === "through_ball" ? runnerId === receiver.id : undefined}
                             onClick={() => targetMode === "through_ball" ? changeRunner(receiver.id) : handleDetectionClick(receiver)}
                           >
-                            {receiver.id}
+                            {receiver.id.toUpperCase()}
                           </button>
                         ))}
                     </div>
                   </div>
-                ) : <p className="space-hint">คลิกพื้นที่ว่างบนภาพเพื่อกำหนดจุดตกของบอล</p>}
+                ) : <p className="space-hint">คลิกตำแหน่งพื้นที่ว่างบนภาพหรือสนามเพื่อกำหนดจุดตกของบอล</p>}
                 {targetMode === "through_ball" ? (
-                  <p className="space-hint">เลือกจุดข้างหน้าผู้วิ่งบนภาพ ระบบสมมติว่าผู้เล่นวิ่งตรงไปยังจุดนี้ ไม่ได้เดาทิศทางจากภาพนิ่ง</p>
+                  <p className="space-hint">เลือกเพื่อนร่วมทีมก่อน แล้วคลิกจุดข้างหน้าที่ต้องการให้วิ่งไปรับบอล (ระบบสมมติว่าผู้เล่นวิ่งเป็นเส้นตรง)</p>
                 ) : null}
                 <details className="advanced-panel">
-                  <summary>Advanced Settings</summary>
+                  <summary>ตั้งค่าพารามิเตอร์จำลอง (ความเร็ว / เวลาตอบสนอง)</summary>
                   <div className="field-grid">
                     {([
-                      ["ball_speed", "Ball speed", "m/s", 1, 60, 0.5],
-                      ["chip_speed", "Chip speed", "m/s", 1, 40, 0.5],
-                      ["chip_apex_height", "Chip apex", "m", 1, 8, 0.25],
-                      ["long_ball_speed", "Long ball speed*", "m/s", 1, 40, 0.5],
-                      ["long_ball_apex_height", "Long ball apex*", "m", 1, 10, 0.25],
-                      ["defender_speed", "Defender speed", "m/s", 1, 15, 0.5],
-                      ["attacker_speed", "Attacker speed", "m/s", 1, 15, 0.5],
-                      ["reaction_time", "Reaction time", "s", 0, 3, 0.1],
-                      ["reach_radius", "Reach radius", "m", 0, 3, 0.1],
+                      ["ball_speed", "ความเร็วลูกเรียด", "ม./วิ", 1, 60, 0.5],
+                      ["chip_speed", "ความเร็วแนวราบลูกชิพ", "ม./วิ", 1, 40, 0.5],
+                      ["chip_apex_height", "จุดสูงสุดลูกชิพ", "ม.", 1, 8, 0.25],
+                      ["long_ball_speed", "ความเร็วลูกเปิดยาว*", "ม./วิ", 1, 40, 0.5],
+                      ["long_ball_apex_height", "จุดสูงสุดลูกเปิดยาว*", "ม.", 1, 10, 0.25],
+                      ["defender_speed", "ความเร็วกองหลัง", "ม./วิ", 1, 15, 0.5],
+                      ["attacker_speed", "ความเร็วผู้รับบอล", "ม./วิ", 1, 15, 0.5],
+                      ["reaction_time", "เวลาตอบสนองกองหลัง", "วินาที", 0, 3, 0.1],
+                      ["reach_radius", "รัศมีระยะเอื้อมสกัด", "ม.", 0, 3, 0.1],
                     ] as const).map(([key, label, unit, min, max, increment]) => (
                       <label key={key}>
                         <span>{label}</span>
@@ -966,37 +1003,39 @@ function App() {
                       </label>
                     ))}
                   </div>
-                  <button className="text-button" type="button" onClick={() => changeParameters(defaultParameters)}>คืนค่าเริ่มต้น</button>
-                  <small className="model-note">* ค่าเปิดยาวเป็นค่าทดลองจากงานศึกษาหนึ่งชุด ไม่ใช่ค่ามาตรฐานสากล</small>
+                  <button className="text-button" type="button" onClick={() => changeParameters(defaultParameters)}>คืนค่ามาตรฐานเริ่มต้น</button>
+                  <small className="model-note">* ค่าลูกเปิดยาวเป็นค่าทดลองจากงานศึกษา ไม่ใช่ค่ามาตรฐานสากล</small>
                 </details>
                 {activeComparison ? (
                   <div className={`active-risk risk-${activeComparison.result.risk}`}>
-                    <span>ผลลัพธ์ที่เลือก · {activeComparison.result.pass_type.toUpperCase()}</span>
-                    <strong>{activeComparison.result.risk_percent}%</strong>
-                    <p>ระดับ {activeComparison.result.risk.toUpperCase()}</p>
+                    <div className="active-risk-header">
+                      <span>ทางเลือกปัจจุบัน · {passTypeThai[activeComparison.result.pass_type]}</span>
+                      <strong>ความเสี่ยง {activeComparison.result.risk_percent}%</strong>
+                    </div>
+                    <p>ระดับ: {riskThai[activeComparison.result.risk] ?? activeComparison.result.risk}</p>
                     <p>{activeComparison.result.explanation}</p>
                     <details>
-                      <summary>ดูรายละเอียดการคำนวณ</summary>
+                      <summary>ดูรายละเอียดการคำนวณเชิงตัวเลข</summary>
                       <dl>
-                        <div><dt>ระยะจ่าย</dt><dd>{activeComparison.result.pass_distance.toFixed(2)} m</dd></div>
-                        <div><dt>รูปแบบ</dt><dd>{activeComparison.result.pass_type.toUpperCase()}</dd></div>
-                        <div><dt>เวลาบอล</dt><dd>{activeComparison.result.ball_time.toFixed(3)} s</dd></div>
-                        <div><dt>ผู้สกัด</dt><dd>{activeComparison.result.interceptor_id ?? "ไม่มี"}</dd></div>
-                        <div><dt>ผู้รับที่เร็วที่สุด</dt><dd>{activeComparison.result.receiver_id ?? "ไม่มี"}</dd></div>
-                        <div><dt>เวลาผู้รับถึงจุด</dt><dd>{activeComparison.result.receiver_arrival_time?.toFixed(3) ?? "—"} s</dd></div>
-                        <div><dt>ผู้รับเทียบกับบอล</dt><dd>{activeComparison.result.receiver_ball_margin?.toFixed(3) ?? "—"} s</dd></div>
-                        <div><dt>Time margin</dt><dd>{activeComparison.result.minimum_margin?.toFixed(3) ?? "—"} s</dd></div>
+                        <div><dt>ระยะทางส่งบอล</dt><dd>{activeComparison.result.pass_distance.toFixed(2)} เมตร</dd></div>
+                        <div><dt>รูปแบบการส่ง</dt><dd>{passTypeThai[activeComparison.result.pass_type]}</dd></div>
+                        <div><dt>เวลาบอลเดินทาง</dt><dd>{activeComparison.result.ball_time.toFixed(3)} วินาที</dd></div>
+                        <div><dt>กองหลังที่ใกล้สกัดที่สุด</dt><dd>{activeComparison.result.interceptor_id ? activeComparison.result.interceptor_id.toUpperCase() : "ไม่มี"}</dd></div>
+                        <div><dt>ผู้รับบอลที่เร็วที่สุด</dt><dd>{activeComparison.result.receiver_id ? activeComparison.result.receiver_id.toUpperCase() : "ไม่มี"}</dd></div>
+                        <div><dt>เวลาผู้รับถึงจุด</dt><dd>{activeComparison.result.receiver_arrival_time?.toFixed(3) ?? "—"} วินาที</dd></div>
+                        <div><dt>ส่วนต่างเวลากับบอล</dt><dd>{activeComparison.result.receiver_ball_margin?.toFixed(3) ?? "—"} วินาที</dd></div>
+                        <div><dt>ส่วนต่างเวลาสกัด (Margin)</dt><dd>{activeComparison.result.minimum_margin?.toFixed(3) ?? "—"} วินาที</dd></div>
                       </dl>
                       <p>{activeComparison.result.disclaimer}</p>
                     </details>
                   </div>
                 ) : <p className="space-hint" role="status">{busy
-                  ? "กำลังคำนวณผลใหม่…"
+                  ? "กำลังคำนวณผลจำลองใหม่…"
                   : targetMode === "receiver"
-                    ? "เลือกผู้รับบอลเพื่อแสดงผล"
+                    ? "คลิกเลือกเพื่อนร่วมทีมเพื่อแสดงผลจำลอง"
                     : targetMode === "space"
-                      ? "เลือกจุดเป้าหมายบนสนามเพื่อแสดงผล"
-                      : "เลือกผู้วิ่งและจุดเป้าหมายบนสนามเพื่อแสดงผล"}</p>}
+                      ? "คลิกจุดพื้นที่ว่างบนสนามเพื่อแสดงผลจำลอง"
+                      : "เลือกเพื่อนร่วมทีมและคลิกจุดวิ่งบนสนามเพื่อแสดงผลจำลอง"}</p>}
               </div>
             ) : null}
           </aside>
@@ -1015,17 +1054,87 @@ function App() {
           />
         ) : null}
 
-        <section className="method-strip">
-          <div><span>01</span><strong>DETECT ONCE</strong><p>วิเคราะห์ภาพเพียงครั้งเดียวต่อจังหวะ</p></div>
-          <div><span>02</span><strong>CALIBRATE</strong><p>แปลง Pixel เป็นระยะบนสนามจริง</p></div>
-          <div><span>03</span><strong>SIMULATE FAST</strong><p>เปลี่ยนเป้าหมายโดยไม่ Detect ซ้ำ</p></div>
-        </section>
       </main>
 
-      <footer>
-        <strong>TactiVision MVP</strong>
-        <p>เปอร์เซ็นต์เป็นดัชนีความเสี่ยงจากแบบจำลอง ไม่ใช่ความน่าจะเป็นจากข้อมูลการแข่งขันจริง</p>
-      </footer>
+      {showGuide ? (
+        <div className="modal-backdrop" onClick={() => setShowGuide(false)} role="dialog" aria-modal="true" aria-labelledby="guide-title">
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <div className="modal-header">
+              <div>
+                <span className="eyebrow">USER MANUAL & WORKFLOW GUIDE</span>
+                <h2 id="guide-title">คู่มือการใช้งานเว็บไซต์ TactiVision</h2>
+              </div>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setShowGuide(false)}
+                aria-label="ปิดคู่มือ"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <p className="modal-intro">
+                TactiVision เป็นเครื่องมือสำหรับผู้ฝึกสอน นักวิเคราะห์แท็กติก และผู้สนใจกีฬาฟุตบอล เพื่อวิเคราะห์และเปรียบเทียบทางเลือกในการจ่ายบอลจากภาพนิ่งจังหวะการแข่งขันจริง โดยมี 5 ขั้นตอนหลัก:
+              </p>
+
+              <div className="guide-steps-grid">
+                <div className="guide-step-card">
+                  <div className="guide-step-header">
+                    <span className="step-num">01</span>
+                    <h4>เลือกภาพการแข่งขัน</h4>
+                  </div>
+                  <p>อัปโหลดภาพมุมถ่ายทอดกว้างที่มองเห็นเส้นสนามและนักเตะชัดเจน หรือกดปุ่ม <strong>“ลองฉากตัวอย่าง”</strong> เพื่อทดสอบระบบได้ทันทีโดยไม่ต้องใช้ภาพ</p>
+                </div>
+
+                <div className="guide-step-card">
+                  <div className="guide-step-header">
+                    <span className="step-num">02</span>
+                    <h4>ตรวจผู้เล่นและทีม</h4>
+                  </div>
+                  <p>ระบบตรวจจับนักเตะและแยกสีเสื้อเป็น <strong>ทีม A (สีฟ้า)</strong> กับ <strong>ทีม B (สีแดง)</strong> ให้ตรวจทานบทบาท (ผู้เล่น/ผู้รักษาประตู/ผู้ตัดสิน) ให้ถูกต้อง</p>
+                </div>
+
+                <div className="guide-step-card">
+                  <div className="guide-step-header">
+                    <span className="step-num">03</span>
+                    <h4>เทียบพิกัดสนาม (Calibration)</h4>
+                  </div>
+                  <p>ระบบแปลงภาพมุมกล้องลงสู่ระนาบสนามจริง <strong>105 × 68 เมตร</strong> อัตโนมัติ หรือสามารถคลิกกำหนดจุดอ้างอิงบนสนามอย่างน้อย 4 จุดได้เอง</p>
+                </div>
+
+                <div className="guide-step-card">
+                  <div className="guide-step-header">
+                    <span className="step-num">04</span>
+                    <h4>ระบุผู้เล่นครองบอล</h4>
+                  </div>
+                  <p>คลิกเลือกนักเตะที่เป็นผู้ถือครองบอลและจะเป็นผู้เริ่มจ่ายบอลในจังหวะนั้น เพื่อใช้เป็นจุดเริ่มต้นของวิถีส่งบอล</p>
+                </div>
+
+                <div className="guide-step-card">
+                  <div className="guide-step-header">
+                    <span className="step-num">05</span>
+                    <h4>จำลอง & เปรียบเทียบทางเลือก</h4>
+                  </div>
+                  <p>เลือกเพื่อนร่วมทีมเพื่อส่งบอลเข้าเท้า หรือคลิกพื้นที่ว่างบนสนามเพื่อส่งบอลเข้าที่ว่าง/แทงทะลุช่อง สลับประเภทบอล (ลูกเรียด/ลูกชิพ/เปิดยาว) และเปรียบเทียบได้สูงสุด 3 ทางเลือก</p>
+                </div>
+              </div>
+
+              <div className="guide-notice-box">
+                <strong>ความเข้าใจเกี่ยวกับ “ดัชนีความเสี่ยง (Pass Interception Risk)”</strong>
+                <p>
+                  เปอร์เซ็นต์ความเสี่ยง 0–100% เป็นดัชนีคำนวณจากแบบจำลองคิเนมาติกส์ทางฟิสิกส์ (เวลาที่บอลเดินทางเทียบกับเวลาที่ฝ่ายตรงข้ามวิ่งเข้าสกัดบอล) <em>ไม่ใช่ความน่าจะเป็นจากสถิติ และไม่ใช่ AI คาดเดาอนาคต</em> เพื่อให้การวิเคราะห์แท็กติกมีความโปร่งใสและตรวจสอบตัวแปรได้
+                </p>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="primary-button modal-ack-btn" onClick={() => setShowGuide(false)}>
+                เข้าใจแล้ว เริ่มใช้งานเว็บไซต์ <span>→</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
