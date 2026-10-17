@@ -182,7 +182,6 @@ function App() {
   const [maxStep, setMaxStep] = useState(1);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<DetectResponse | null>(null);
-  const [isFixture, setIsFixture] = useState(false);
   const [busy, setBusy] = useState(false);
   const [analysisProgress, setAnalysisProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -249,7 +248,6 @@ function App() {
     setAnalysis(null);
     setStep(1);
     setMaxStep(1);
-    setIsFixture(false);
     setManualMode(false);
     setCalibrationPairs([]);
     setPendingLandmark(null);
@@ -294,7 +292,6 @@ function App() {
     resetAnalysis("/demo-pitch.svg");
     const result = cloneDemo();
     setAnalysis(result);
-    setIsFixture(true);
     setStep(2);
     setMaxStep(2);
     setNotice("กำลังใช้ฉากและ Detection ตัวอย่าง ข้อมูลส่วนนี้ไม่ใช่ผลจาก AI");
@@ -641,50 +638,24 @@ function App() {
     );
   }
 
-  const statusLabel = busy
-    ? "กำลังประมวลผล…"
-    : analysis
-      ? `${analysis.detector.model} · ${analysis.detector.mode === "fine_tuned" ? "โมเดลจำเพาะ (Fine-tuned)" : isFixture ? "ชุดข้อมูลตัวอย่าง" : "โมเดลมาตรฐาน"}`
-      : "พร้อมเริ่มต้นวิเคราะห์";
   const errorLevel = calibrationErrorLevel(analysis?.calibration.reprojection_error ?? null);
 
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <a className="brand" href="#top" aria-label="TactiVision หน้าหลัก">
-          <span className="brand-mark">TV</span>
-          <span><strong>TactiVision</strong><small>ระบบวิเคราะห์แท็กติกและจำลองการจ่ายบอล</small></span>
-        </a>
-        <div className="topbar-actions">
-          <div className="status-pill"><i className={busy ? "pulse" : ""} />{statusLabel}</div>
-          <button
-            type="button"
-            className="guide-button"
-            onClick={() => setShowGuide(true)}
-            aria-label="เปิดคู่มือการใช้งานเว็บไซต์"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-            </svg>
-            <span>คู่มือการใช้งานเว็บไซต์</span>
-          </button>
-        </div>
-      </header>
-
-      <main id="top">
+    <div className="analysis-page">
+      <main id="top" className="analysis-main">
         <section className="tool-header">
           <div className="tool-title-wrap">
-            <span className="tool-badge">TACTICAL PASS ANALYSIS</span>
+            <span className="tool-badge">ANALYSIS WORKSPACE · TACTICAL PASS COMPARATOR</span>
             <h1>ระบบวิเคราะห์และจำลองความเสี่ยงในการจ่ายบอล</h1>
             <p>
               ประเมินทางเลือกการส่งบอลจากภาพนิ่งจังหวะการแข่งขัน • คำนวณความเสี่ยงในการถูกตัดบอลบนระนาบสนามจริง 105 × 68 เมตร ด้วยโมเดลคิเนมาติกส์
             </p>
           </div>
           <div className="tool-meta-badge">
-            <span className="meta-label">มาตรฐานสนาม</span>
-            <span className="meta-value">FIFA 105 × 68 ม.</span>
+            <span className="meta-label">WORKSPACE STATUS</span>
+            <span className="meta-value">{busy ? "PROCESSING" : "READY"} · 105 × 68 M</span>
           </div>
+          <button className="analysis-guide-button" type="button" onClick={() => setShowGuide(true)}>คู่มือการใช้งาน</button>
         </section>
 
         <StepRail current={step} maxStep={maxStep} onStep={(nextStep) => {
