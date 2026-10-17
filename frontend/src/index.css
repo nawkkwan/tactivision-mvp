@@ -2596,6 +2596,9 @@ body { background: #f7f7f2; color: #111311; }
 .analysis-page .board-stage.view-split .field-map-pitch { flex: 1 1 auto; }
 .analysis-page .board-image-view > p { color: #3f4b42; }
 .analysis-page .board-legend { color: #435047; }
+.analysis-page .board-legend span { color: #1f2922; font-weight: 650; }
+.analysis-page .board-legend .route-dot { border: 1px solid rgba(17, 19, 17, .18); }
+.analysis-page .board-legend b { color: #a66900; }
 
 .board-image-help { flex: 1 1 auto; margin-top: 10px; padding: 13px 14px; border: 1px solid #adb6ae; background: #fff; }
 .board-image-help > span { display: block; margin-bottom: 9px; color: #0b6b3a; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
