@@ -189,7 +189,6 @@ function App() {
   const [manualMode, setManualMode] = useState(false);
   const [pendingLandmark, setPendingLandmark] = useState<(typeof landmarks)[number] | null>(null);
   const [calibrationPairs, setCalibrationPairs] = useState<CalibrationPair[]>([]);
-  const [showGuide, setShowGuide] = useState(false);
   const [candidateCarrierId, setCandidateCarrierId] = useState<string | null>(null);
   const [carrierId, setCarrierId] = useState<string | null>(null);
   const [comparisons, setComparisons] = useState<Comparison[]>([]);
@@ -728,7 +727,15 @@ function App() {
             <span className="meta-label">WORKSPACE STATUS</span>
             <span className="meta-value">{busy ? "PROCESSING" : "READY"} · 105 × 68 M</span>
           </div>
-          <button className="analysis-guide-button" type="button" onClick={() => setShowGuide(true)}>คู่มือการใช้งาน</button>
+          <a
+            className="analysis-guide-button"
+            href="https://www.youtube.com/watch?v=9Wh3DIm022A"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="เปิดวิดีโอคู่มือการใช้งาน TactiVision ในแท็บใหม่"
+          >
+            คู่มือการใช้งาน <span aria-hidden="true">↗</span>
+          </a>
         </section>
 
         <StepRail current={step} maxStep={maxStep} onStep={(nextStep) => {
@@ -1060,86 +1067,6 @@ function App() {
         )}
 
       </main>
-
-      {showGuide ? (
-        <div className="modal-backdrop" onClick={() => setShowGuide(false)} role="dialog" aria-modal="true" aria-labelledby="guide-title">
-          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">USER MANUAL & WORKFLOW GUIDE</span>
-                <h2 id="guide-title">คู่มือการใช้งานเว็บไซต์ TactiVision</h2>
-              </div>
-              <button
-                type="button"
-                className="modal-close-btn"
-                onClick={() => setShowGuide(false)}
-                aria-label="ปิดคู่มือ"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="modal-body">
-              <p className="modal-intro">
-                TactiVision เป็นเครื่องมือสำหรับผู้ฝึกสอน นักวิเคราะห์แท็กติก และผู้สนใจกีฬาฟุตบอล เพื่อวิเคราะห์และเปรียบเทียบทางเลือกในการจ่ายบอลจากภาพนิ่งจังหวะการแข่งขันจริง โดยมี 5 ขั้นตอนหลัก:
-              </p>
-
-              <div className="guide-steps-grid">
-                <div className="guide-step-card">
-                  <div className="guide-step-header">
-                    <span className="step-num">01</span>
-                    <h4>เลือกภาพการแข่งขัน</h4>
-                  </div>
-                  <p>อัปโหลดภาพมุมถ่ายทอดกว้างที่มองเห็นเส้นสนามและนักเตะชัดเจน หรือกดปุ่ม <strong>“ลองฉากตัวอย่าง”</strong> เพื่อทดสอบระบบได้ทันทีโดยไม่ต้องใช้ภาพ</p>
-                </div>
-
-                <div className="guide-step-card">
-                  <div className="guide-step-header">
-                    <span className="step-num">02</span>
-                    <h4>ตรวจผู้เล่นและทีม</h4>
-                  </div>
-                  <p>ระบบตรวจจับนักเตะและแยกสีเสื้อเป็น <strong>ทีม A (สีฟ้า)</strong> กับ <strong>ทีม B (สีแดง)</strong> ให้ตรวจทานบทบาท (ผู้เล่น/ผู้รักษาประตู/ผู้ตัดสิน) ให้ถูกต้อง</p>
-                </div>
-
-                <div className="guide-step-card">
-                  <div className="guide-step-header">
-                    <span className="step-num">03</span>
-                    <h4>เทียบพิกัดสนาม (Calibration)</h4>
-                  </div>
-                  <p>ระบบแปลงภาพมุมกล้องลงสู่ระนาบสนามจริง <strong>105 × 68 เมตร</strong> อัตโนมัติ หรือสามารถคลิกกำหนดจุดอ้างอิงบนสนามอย่างน้อย 4 จุดได้เอง</p>
-                </div>
-
-                <div className="guide-step-card">
-                  <div className="guide-step-header">
-                    <span className="step-num">04</span>
-                    <h4>ระบุผู้เล่นครองบอล</h4>
-                  </div>
-                  <p>คลิกเลือกนักเตะที่เป็นผู้ถือครองบอลและจะเป็นผู้เริ่มจ่ายบอลในจังหวะนั้น เพื่อใช้เป็นจุดเริ่มต้นของวิถีส่งบอล</p>
-                </div>
-
-                <div className="guide-step-card">
-                  <div className="guide-step-header">
-                    <span className="step-num">05</span>
-                    <h4>จำลอง & เปรียบเทียบทางเลือก</h4>
-                  </div>
-                  <p>หน้าเริ่มต้นแสดงภาพการแข่งขันจริงเหมือนเดิม คลิกเพื่อนร่วมทีมเพื่อส่งเข้าเท้าหรือคลิกพื้นที่ว่างได้ทันที และสลับไปดูสนาม 2D/ดูคู่กันเพื่อเทียบเส้นทาง A, B และ C ได้สูงสุด 3 ทางเลือก</p>
-                </div>
-              </div>
-
-              <div className="guide-notice-box">
-                <strong>ความเข้าใจเกี่ยวกับ “ดัชนีความเสี่ยง (Pass Interception Risk)”</strong>
-                <p>
-                  คะแนนความเสี่ยง 0–100 เป็นดัชนีจากแบบจำลองคิเนมาติกส์ทางฟิสิกส์ (เวลาที่บอลเดินทางเทียบกับเวลาที่ฝ่ายตรงข้ามวิ่งเข้าสกัดบอล) <em>ไม่ใช่เปอร์เซ็นต์ความน่าจะเป็นจากข้อมูลการแข่งขันจริง</em> เพื่อให้การวิเคราะห์แท็กติกมีความโปร่งใสและตรวจสอบตัวแปรได้
-                </p>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button type="button" className="primary-button modal-ack-btn" onClick={() => setShowGuide(false)}>
-                เข้าใจแล้ว เริ่มใช้งานเว็บไซต์ <span>→</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }
