@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { FieldMap } from "./FieldMap";
 import { PitchWorkspace } from "./PitchWorkspace";
 import { RiskResults } from "./RiskResults";
@@ -45,6 +45,12 @@ const passOptions: Array<{ id: PassType; title: string; detail: string; path: st
   { id: "long_ball", title: "ลูกเปิดยาว", detail: "โค้งสูงและไกล", path: "M2 16 Q16 -3 30 16" },
 ];
 
+function waitForBoardRender() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  });
+}
+
 export function PassAnalysisBoard({
   analysis,
   imageUrl,
@@ -68,7 +74,10 @@ export function PassAnalysisBoard({
   onParametersChange,
   onResetParameters,
 }: PassAnalysisBoardProps) {
+  const reportRef = useRef<HTMLElement>(null);
   const [view, setView] = useState<BoardView>("image");
+  const [exporting, setExporting] = useState<"image" | "pdf" | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const activeComparison = comparisons.find((item) => item.id === activeId) ?? null;
   const carrier = analysis.detections.find((item) => item.id === carrierId);
   const teammates = analysis.detections.filter(
@@ -78,6 +87,83 @@ export function PassAnalysisBoard({
       item.field_position !== null &&
       (item.class_name === "player" || item.class_name === "goalkeeper"),
   );
+
+  async function createReportImage() {
+    if (!reportRef.current || comparisons.length !== 3 || pendingSlot !== null) {
+      throw new Error("กรุณารอให้ผลเปรียบเทียบ A, B และ C คำนวณครบก่อน");
+    }
+    const previousView = view;
+    if (view !== "split") {
+      setView("split");
+      await waitForBoardRender();
+    }
+    try {
+      const [{ toPng }] = await Promise.all([import("html-to-image"), document.fonts.ready]);
+      return await toPng(reportRef.current, {
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        pixelRatio: 2,
+        filter: (node) => !(node instanceof HTMLElement && node.dataset.exportIgnore === "true"),
+      });
+    } finally {
+      if (previousView !== "split") setView(previousView);
+    }
+  }
+
+  function reportFilename(extension: "png" | "pdf") {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    return `tactivision-abc-with-pitch-${timestamp}.${extension}`;
+  }
+
+  function downloadFile(url: string, filename: string) {
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = url;
+    link.click();
+  }
+
+  async function exportImage() {
+    setExporting("image");
+    setExportError(null);
+    try {
+      downloadFile(await createReportImage(), reportFilename("png"));
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "ส่งออกภาพไม่สำเร็จ");
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function exportPdf() {
+    setExporting("pdf");
+    setExportError(null);
+    try {
+      const [{ jsPDF }, image] = await Promise.all([import("jspdf"), createReportImage()]);
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const preview = new Image();
+        preview.onload = () => resolve({ width: preview.naturalWidth, height: preview.naturalHeight });
+        preview.onerror = () => reject(new Error("เตรียมภาพสำหรับ PDF ไม่สำเร็จ"));
+        preview.src = image;
+      });
+      const orientation = dimensions.width >= dimensions.height ? "landscape" : "portrait";
+      const pdf = new jsPDF({ orientation, unit: "mm", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 8;
+      const scale = Math.min(
+        (pageWidth - margin * 2) / dimensions.width,
+        (pageHeight - margin * 2) / dimensions.height,
+      );
+      const width = dimensions.width * scale;
+      const height = dimensions.height * scale;
+      pdf.addImage(image, "PNG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
+      pdf.save(reportFilename("pdf"));
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "ส่งออก PDF ไม่สำเร็จ");
+    } finally {
+      setExporting(null);
+    }
+  }
 
   const fieldMap = (
     <FieldMap
@@ -110,7 +196,7 @@ export function PassAnalysisBoard({
         onDetectionClick={onDetectionClick}
         onCanvasClick={onCanvasClick}
       />
-      <div className="board-image-help" aria-label="วิธีใช้งานภาพการแข่งขัน">
+      <div className="board-image-help" data-export-ignore="true" aria-label="วิธีใช้งานภาพการแข่งขัน">
         <span className="eyebrow">ทำอะไรบนภาพนี้ได้บ้าง</span>
         <div>
           <article><b>คลิกเพื่อนร่วมทีม</b><small>คำนวณการส่งเข้าเท้าของผู้เล่นคนนั้นทันที</small></article>
@@ -122,7 +208,7 @@ export function PassAnalysisBoard({
   );
 
   return (
-    <section className="analysis-board" aria-labelledby="analysis-board-title">
+    <section ref={reportRef} className="analysis-board" aria-labelledby="analysis-board-title">
       <header className="analysis-board-header">
         <div>
           <span className="eyebrow">STEP 5 · PASS ANALYSIS BOARD</span>
@@ -132,13 +218,13 @@ export function PassAnalysisBoard({
         <div className="board-ready"><i />พร้อมจำลอง</div>
       </header>
 
-      <div className="board-workflow" aria-label="ขั้นตอนการใช้งานกระดานวิเคราะห์">
+      <div className="board-workflow" data-export-ignore="true" aria-label="ขั้นตอนการใช้งานกระดานวิเคราะห์">
         <span className="done"><b>1</b> ผู้ครองบอล {carrierId.toUpperCase()}</span>
         <span className="current"><b>2</b> คลิกเป้าหมาย</span>
         <span className={comparisons.length > 0 ? "done" : ""}><b>3</b> ดูผลเปรียบเทียบ</span>
       </div>
 
-      <div className="board-toolbar">
+      <div className="board-toolbar" data-export-ignore="true">
         <div className="board-pass-types" role="group" aria-label="รูปแบบวิถีการจ่ายบอล">
           {passOptions.map((option) => (
             <button type="button" key={option.id} aria-pressed={passType === option.id} onClick={() => onPassTypeChange(option.id)}>
@@ -167,10 +253,20 @@ export function PassAnalysisBoard({
           </div>
         </div>
 
-        <RiskResults comparisons={comparisons} activeId={activeId} pendingSlot={pendingSlot} onSelect={onSelectComparison} onClear={onClearComparisons} />
+        <RiskResults
+          comparisons={comparisons}
+          activeId={activeId}
+          pendingSlot={pendingSlot}
+          exporting={exporting}
+          exportError={exportError}
+          onSelect={onSelectComparison}
+          onClear={onClearComparisons}
+          onExportImage={() => void exportImage()}
+          onExportPdf={() => void exportPdf()}
+        />
       </div>
 
-      <details className="board-advanced">
+      <details className="board-advanced" data-export-ignore="true">
         <summary>ตั้งค่าขั้นสูง · แทงทะลุช่อง / ความเร็ว / เวลาตอบสนอง</summary>
         <div className="advanced-target-mode">
           <button type="button" aria-pressed={targetMode === "through_ball"} onClick={() => onTargetModeChange(targetMode === "through_ball" ? "receiver" : "through_ball")}>
