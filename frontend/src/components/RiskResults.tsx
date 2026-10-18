@@ -1,12 +1,15 @@
-import { useRef, useState } from "react";
 import type { Comparison } from "../types";
 
 interface RiskResultsProps {
   comparisons: Comparison[];
   activeId: string | null;
   pendingSlot: number | null;
+  exporting: "image" | "pdf" | null;
+  exportError: string | null;
   onSelect: (id: string) => void;
   onClear: () => void;
+  onExportImage: () => void;
+  onExportPdf: () => void;
 }
 
 const riskLabels = {
@@ -21,85 +24,24 @@ const passTypeLabels = {
   long_ball: "ลูกเปิดยาว",
 } as const;
 
-export function RiskResults({ comparisons, activeId, pendingSlot, onSelect, onClear }: RiskResultsProps) {
-  const reportRef = useRef<HTMLDivElement>(null);
-  const [exporting, setExporting] = useState<"image" | "pdf" | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
+export function RiskResults({
+  comparisons,
+  activeId,
+  pendingSlot,
+  exporting,
+  exportError,
+  onSelect,
+  onClear,
+  onExportImage,
+  onExportPdf,
+}: RiskResultsProps) {
   const activeComparison = comparisons.find((item) => item.id === activeId) ?? null;
   const lowestScore = comparisons.length > 0 ? Math.min(...comparisons.map((item) => item.result.risk_percent)) : null;
   const isComplete = comparisons.length === 3;
 
-  async function createReportImage() {
-    if (!reportRef.current || !isComplete || pendingSlot !== null) {
-      throw new Error("กรุณารอให้ผลเปรียบเทียบ A, B และ C คำนวณครบก่อน");
-    }
-    const [{ toPng }] = await Promise.all([import("html-to-image"), document.fonts.ready]);
-    return toPng(reportRef.current, {
-      backgroundColor: "#ffffff",
-      cacheBust: true,
-      pixelRatio: 2,
-      filter: (node) => !(node instanceof HTMLElement && node.dataset.exportIgnore === "true"),
-    });
-  }
-
-  function reportFilename(extension: "png" | "pdf") {
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    return `tactivision-abc-${timestamp}.${extension}`;
-  }
-
-  function downloadFile(url: string, filename: string) {
-    const link = document.createElement("a");
-    link.download = filename;
-    link.href = url;
-    link.click();
-  }
-
-  async function exportImage() {
-    setExporting("image");
-    setExportError(null);
-    try {
-      downloadFile(await createReportImage(), reportFilename("png"));
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : "ส่งออกภาพไม่สำเร็จ");
-    } finally {
-      setExporting(null);
-    }
-  }
-
-  async function exportPdf() {
-    setExporting("pdf");
-    setExportError(null);
-    try {
-      const [{ jsPDF }, image] = await Promise.all([import("jspdf"), createReportImage()]);
-      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
-        const preview = new Image();
-        preview.onload = () => resolve({ width: preview.naturalWidth, height: preview.naturalHeight });
-        preview.onerror = () => reject(new Error("เตรียมภาพสำหรับ PDF ไม่สำเร็จ"));
-        preview.src = image;
-      });
-      const orientation = dimensions.width >= dimensions.height ? "landscape" : "portrait";
-      const pdf = new jsPDF({ orientation, unit: "mm", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const margin = 8;
-      const scale = Math.min(
-        (pageWidth - margin * 2) / dimensions.width,
-        (pageHeight - margin * 2) / dimensions.height,
-      );
-      const width = dimensions.width * scale;
-      const height = dimensions.height * scale;
-      pdf.addImage(image, "PNG", (pageWidth - width) / 2, (pageHeight - height) / 2, width, height);
-      pdf.save(reportFilename("pdf"));
-    } catch (error) {
-      setExportError(error instanceof Error ? error.message : "ส่งออก PDF ไม่สำเร็จ");
-    } finally {
-      setExporting(null);
-    }
-  }
-
   return (
     <aside className="board-results" aria-labelledby="board-results-title">
-      <div ref={reportRef} className="board-export-report">
+      <div className="board-export-report">
         <div className="board-results-heading">
           <div>
             <span className="eyebrow">TactiVision · เปรียบเทียบในสนามเดียวกัน</span>
@@ -154,21 +96,21 @@ export function RiskResults({ comparisons, activeId, pendingSlot, onSelect, onCl
       </div>
 
       {isComplete ? (
-        <div className="board-export-actions" aria-label="ส่งออกผลเปรียบเทียบ A B และ C">
+        <div className="board-export-actions" data-export-ignore="true" aria-label="ส่งออกผลเปรียบเทียบ A B และ C">
           <span>บันทึกผลสำหรับโค้ชและนักเตะ</span>
           <div>
-            <button type="button" disabled={exporting !== null || pendingSlot !== null} onClick={() => void exportImage()}>
+            <button type="button" disabled={exporting !== null || pendingSlot !== null} onClick={onExportImage}>
               {exporting === "image" ? "กำลังสร้างภาพ…" : "ดาวน์โหลดภาพ PNG"}
             </button>
-            <button type="button" disabled={exporting !== null || pendingSlot !== null} onClick={() => void exportPdf()}>
+            <button type="button" disabled={exporting !== null || pendingSlot !== null} onClick={onExportPdf}>
               {exporting === "pdf" ? "กำลังสร้าง PDF…" : "ดาวน์โหลด PDF"}
             </button>
           </div>
         </div>
       ) : (
-        <p className="board-export-hint">เพิ่มผลให้ครบ A, B และ C เพื่อส่งออกเป็นภาพหรือ PDF</p>
+        <p className="board-export-hint" data-export-ignore="true">เพิ่มผลให้ครบ A, B และ C เพื่อส่งออกเป็นภาพหรือ PDF</p>
       )}
-      {exportError ? <p className="board-export-error" role="alert">{exportError}</p> : null}
+      {exportError ? <p className="board-export-error" data-export-ignore="true" role="alert">{exportError}</p> : null}
 
       {activeComparison ? (
         <section className={`board-active-detail risk-${activeComparison.result.risk}`}>
