@@ -357,6 +357,26 @@ function App() {
     setManualMode(analysis.calibration.status !== "success");
   }
 
+  function clearCalibrationFailureFeedback(message: string) {
+    setAnalysis((current) => {
+      if (
+        !current
+        || current.calibration.status !== "needs_manual"
+        || current.calibration.reprojection_error === null
+      ) return current;
+      return {
+        ...current,
+        calibration: {
+          ...current.calibration,
+          confidence: 0,
+          reprojection_error: null,
+          outlier_indices: [],
+          message,
+        },
+      };
+    });
+  }
+
   function handleCanvasClick(point: Point2D) {
     if (step === 3 && manualMode) {
       if (busy) return;
@@ -368,6 +388,7 @@ function App() {
         ...current.filter((pair) => !hasCalibrationPair(pair, pendingLandmark)),
         { label: `${pendingLandmark.code}: ${pendingLandmark.label}`, image: point, field: pendingLandmark.field },
       ]);
+      clearCalibrationFailureFeedback("แก้ไขจุดอ้างอิงแล้ว เมื่อพร้อมให้คำนวณ Manual Calibration อีกครั้ง");
       setNotice(`บันทึก ${pendingLandmark.code} · ${pendingLandmark.label} แล้ว`);
       setPendingLandmark(null);
       setError(null);
@@ -422,6 +443,7 @@ function App() {
   function removeCalibrationPoints(label?: string) {
     if (busy) return;
     setCalibrationPairs((current) => label ? current.filter((pair) => pair.label !== label) : []);
+    clearCalibrationFailureFeedback("เลือกจุดอ้างอิงใหม่ให้ตรงจุดตัดของเส้นสนามและกระจายรอบภาพ");
     setPendingLandmark((current) => !label || current?.code === label.split(":")[0] ? null : current);
     setError(null);
     setNotice(label ? `ลบจุด “${label}” แล้ว สามารถเลือกใหม่ได้` : "ล้างจุดอ้างอิงทั้งหมดแล้ว");
@@ -639,6 +661,10 @@ function App() {
   }
 
   const errorLevel = calibrationErrorLevel(analysis?.calibration.reprojection_error ?? null);
+  const calibrationOutlierIndices = analysis?.calibration.outlier_indices ?? [];
+  const calibrationOutlierLabels = calibrationOutlierIndices
+    .map((index) => calibrationPairs[index]?.label.split(":")[0])
+    .filter((label): label is string => Boolean(label));
 
   function renderLandmarkCategoryControls() {
     return (
@@ -710,7 +736,12 @@ function App() {
           setStep(nextStep);
         }} />
 
-        {error ? <div className="alert error-alert" role="alert"><strong>ข้อความแจ้งเตือน: </strong>{error}</div> : null}
+        {error ? (
+          <div className="alert error-alert" role="alert">
+            <span className="alert-icon" aria-hidden="true">!</span>
+            <span><strong>ข้อความแจ้งเตือน</strong>{error}</span>
+          </div>
+        ) : null}
         {analysisProgress !== null ? (
           <div className="alert notice-alert analysis-progress-alert" role="status">
             <div><span>{analysisProgressLabel(analysisProgress)}</span><strong>{Math.round(analysisProgress)}%</strong></div>
@@ -761,6 +792,7 @@ function App() {
               carrierId={carrierId}
               candidateCarrierId={candidateCarrierId}
               calibrationPairs={calibrationPairs}
+              calibrationOutlierIndices={calibrationOutlierIndices}
               targetPixel={activeComparison?.targetPixel ?? null}
               interceptPixel={activeComparison?.interceptPixel ?? null}
               passType={activeComparison?.result.pass_type ?? passType}
@@ -844,7 +876,7 @@ function App() {
                 <span className="panel-number">03</span>
                 <span className="eyebrow">ขั้นตอนที่ 3 · พิกเซลภาพ ➔ พิกัดสนามเมตร</span>
                 <h2>เทียบพิกัดสนาม (105 × 68 ม.)</h2>
-                <div className={`calibration-card ${analysis.calibration.status}`}>
+                <div className={`calibration-card ${analysis.calibration.status} ${errorLevel?.className ?? ""}`}>
                   <div>
                     <strong>{analysis.calibration.method === "auto" ? "เทียบพิกัดอัตโนมัติ" : "กำหนดจุดด้วยตนเอง"}</strong>
                     <span>ความเชื่อมั่น {Math.round(analysis.calibration.confidence * 100)}%</span>
@@ -854,6 +886,45 @@ function App() {
                     <div className={`reprojection-status ${errorLevel.className}`}>
                       <span>ความคลาดเคลื่อนพิกัดเฉลี่ย:</span>
                       <strong>{analysis.calibration.reprojection_error.toFixed(2)} เมตร ({errorLevel.label})</strong>
+                    </div>
+                  ) : null}
+                  {errorLevel?.className === "danger" ? (
+                    <div className="calibration-recovery" role="alert">
+                      <strong>ยังไม่ควรใช้ผลนี้</strong>
+                      <span>
+                        {calibrationOutlierLabels.length > 0
+                          ? `จุดที่ควรตรวจและเลือกใหม่: ${calibrationOutlierLabels.join(", ")}`
+                          : "ลบจุดเดิม แล้วเลือกจุดตัดของเส้นสนามที่มองเห็นชัดและกระจายรอบภาพใหม่"}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          if (calibrationOutlierIndices.length > 0) {
+                            const outliers = new Set(calibrationOutlierIndices);
+                            setCalibrationPairs((current) => current.filter((_, index) => !outliers.has(index)));
+                          } else {
+                            setCalibrationPairs([]);
+                          }
+                          setAnalysis((current) => current ? {
+                            ...current,
+                            calibration: {
+                              ...current.calibration,
+                              confidence: 0,
+                              reprojection_error: null,
+                              outlier_indices: [],
+                              message: "เลือกจุดอ้างอิงใหม่ให้ตรงจุดตัดของเส้นสนามและกระจายรอบภาพ",
+                            },
+                          } : current);
+                          setPendingLandmark(null);
+                          setError(null);
+                          setNotice(calibrationOutlierIndices.length > 0
+                            ? "ลบจุดที่คลาดเคลื่อนแล้ว กรุณาเลือกจุดเหล่านั้นใหม่"
+                            : "ล้างจุดเดิมแล้ว กรุณาเลือกจุดอ้างอิงใหม่");
+                        }}
+                      >
+                        {calibrationOutlierIndices.length > 0 ? "ลบจุดที่ควรแก้แล้วเลือกใหม่" : "ล้างจุดเดิมแล้วเลือกใหม่"}
+                      </button>
                     </div>
                   ) : null}
                 </div>
@@ -936,10 +1007,11 @@ function App() {
                           </button>
                         </div>
                         <ol>
-                          {calibrationPairs.map((pair) => (
-                            <li key={pair.label}>
+                          {calibrationPairs.map((pair, index) => (
+                            <li className={calibrationOutlierIndices.includes(index) ? "calibration-point-error" : ""} key={pair.label}>
                               <span className="calibration-point-index">{pair.label.split(":")[0]}</span>
                               <span>{pair.label.slice(pair.label.indexOf(":") + 1).trim()}</span>
+                              {calibrationOutlierIndices.includes(index) ? <strong>เลือกใหม่</strong> : null}
                               <button
                                 className="text-button danger"
                                 type="button"

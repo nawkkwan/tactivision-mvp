@@ -187,6 +187,9 @@ def calibrate_manual(payload: CalibrateRequest) -> CalibrateResponse:
     rmse = float(math.sqrt(float(np.mean(np.square(errors)))))
     inlier_ratio = float(inlier_mask.mean())
     confidence = max(0.0, min(1.0, inlier_ratio * math.exp(-rmse / 3.0)))
+    outlier_indices = np.flatnonzero(
+        (inlier_mask.reshape(-1) == 0) | (errors > MAX_MANUAL_REPROJECTION_ERROR)
+    ).astype(int).tolist()
 
     if not np.isfinite(matrix).all() or rmse > MAX_MANUAL_REPROJECTION_ERROR:
         result = CalibrationResult(
@@ -194,6 +197,7 @@ def calibrate_manual(payload: CalibrateRequest) -> CalibrateResponse:
             method="manual",
             confidence=round(confidence, 3),
             reprojection_error=round(rmse, 3),
+            outlier_indices=outlier_indices,
             message=(
                 f"Reprojection Error {rmse:.2f} เมตร สูงเกินเกณฑ์ "
                 f"{MAX_MANUAL_REPROJECTION_ERROR:.1f} เมตร กรุณาเลือกจุดที่กระจายและตรงเส้นจริงใหม่"
