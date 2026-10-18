@@ -31,6 +31,7 @@ export interface CalibrationResult {
   method: "auto" | "manual" | "preset";
   confidence: number;
   reprojection_error: number | null;
+  outlier_indices?: number[];
   matrix: number[][] | null;
   message: string;
 }

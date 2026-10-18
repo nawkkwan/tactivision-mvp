@@ -40,6 +40,7 @@ class CalibrationResult(BaseModel):
     method: Literal["auto", "manual", "preset"]
     confidence: float = Field(ge=0, le=1)
     reprojection_error: float | None = None
+    outlier_indices: list[int] = Field(default_factory=list)
     matrix: list[list[float]] | None = None
     message: str
 

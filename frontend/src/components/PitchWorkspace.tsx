@@ -35,6 +35,7 @@ interface PitchWorkspaceProps {
   carrierId: string | null;
   candidateCarrierId: string | null;
   calibrationPairs: CalibrationPair[];
+  calibrationOutlierIndices?: number[];
   targetPixel: Point2D | null;
   interceptPixel: Point2D | null;
   passType: PassType;
@@ -51,6 +52,7 @@ export function PitchWorkspace({
   carrierId,
   candidateCarrierId,
   calibrationPairs,
+  calibrationOutlierIndices = [],
   targetPixel,
   interceptPixel,
   passType,
@@ -198,7 +200,12 @@ export function PitchWorkspace({
             {stage === 3
               ? calibrationPairs.map((pair, index) => (
                   <Group key={pair.label} x={pair.image.x * scale} y={pair.image.y * scale}>
-                    <Circle radius={13} fill="#eaaf37" stroke="#060d18" strokeWidth={3} />
+                    <Circle
+                      radius={13}
+                      fill={calibrationOutlierIndices.includes(index) ? "#ef4444" : "#eaaf37"}
+                      stroke="#060d18"
+                      strokeWidth={3}
+                    />
                     <Text
                       text={pair.label.split(":")[0] || String(index + 1)}
                       fill="#060d18"

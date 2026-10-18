@@ -98,3 +98,27 @@ def test_mapped_detection_far_outside_pitch_is_not_used() -> None:
     assert response.calibration.status == "success"
     assert response.detections[0].field_position is None
 
+
+def test_manual_calibration_reports_inconsistent_point_indices() -> None:
+    payload = CalibrateRequest.model_validate(
+        {
+            "image_width": 1000,
+            "image_height": 700,
+            "correspondences": [
+                {"image": {"x": 100, "y": 100}, "field": {"x": 0, "y": 0}},
+                {"image": {"x": 900, "y": 100}, "field": {"x": 105, "y": 0}},
+                {"image": {"x": 900, "y": 600}, "field": {"x": 105, "y": 68}},
+                {"image": {"x": 100, "y": 600}, "field": {"x": 0, "y": 68}},
+                {"image": {"x": 500, "y": 350}, "field": {"x": 10, "y": 10}},
+            ],
+            "detections": [],
+        }
+    )
+
+    response = calibrate_manual(payload)
+
+    assert response.calibration.status == "needs_manual"
+    assert response.calibration.reprojection_error is not None
+    assert response.calibration.reprojection_error > 2
+    assert response.calibration.outlier_indices == [4]
+
