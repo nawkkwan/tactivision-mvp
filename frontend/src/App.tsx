@@ -32,6 +32,24 @@ const defaultParameters: SimulationParameters = {
   sample_step: 0.5,
 };
 
+const sampleScenes = [
+  { code: "B1", category: "bad", src: "/sample-scenes/bad-pass-b1.png" },
+  { code: "B2", category: "bad", src: "/sample-scenes/bad-pass-b2.png" },
+  { code: "B3", category: "bad", src: "/sample-scenes/bad-pass-b3.png" },
+  { code: "B4", category: "bad", src: "/sample-scenes/bad-pass-b4.png" },
+  { code: "B5", category: "bad", src: "/sample-scenes/bad-pass-b5.png" },
+  { code: "G1", category: "good", src: "/sample-scenes/good-pass-g1.png" },
+  { code: "G2", category: "good", src: "/sample-scenes/good-pass-g2.png" },
+  { code: "G3", category: "good", src: "/sample-scenes/good-pass-g3.png" },
+  { code: "G4", category: "good", src: "/sample-scenes/good-pass-g4.png" },
+  { code: "G5", category: "good", src: "/sample-scenes/good-pass-g5.png" },
+] as const;
+
+const sampleSceneGroups = [
+  { category: "good", label: "GOOD PASS", description: "จังหวะจ่ายบอลที่ดี" },
+  { category: "bad", label: "BAD PASS", description: "จังหวะจ่ายบอลที่ควรระวัง" },
+] as const;
+
 const landmarkGroups = [
   {
     title: "เส้นขอบและเส้นแบ่งครึ่งสนาม",
@@ -854,6 +872,45 @@ function App() {
                 <button className="secondary-button" type="button" disabled={busy} onClick={loadDemo}>
                   ลองฉากตัวอย่าง (ไม่ต้องใช้ภาพ)
                 </button>
+                <details className="sample-library">
+                  <summary>
+                    <span>ดาวน์โหลดภาพทดสอบ 10 รูป</span>
+                    <small>เลือกภาพ</small>
+                  </summary>
+                  <p>เลือกดาวน์โหลดภาพ G (Good Pass) หรือ B (Bad Pass) แล้วนำไปอัปโหลดเพื่อทดสอบระบบ</p>
+                  {sampleSceneGroups.map((group) => (
+                    <section className="sample-scene-group" key={group.category}>
+                      <header>
+                        <div>
+                          <strong className={`sample-group-badge ${group.category}`}>{group.label}</strong>
+                          <span>{group.description}</span>
+                        </div>
+                        <small>5 รูป</small>
+                      </header>
+                      <div className="sample-scene-grid">
+                        {sampleScenes
+                          .filter((scene) => scene.category === group.category)
+                          .map((scene) => (
+                            <article className="sample-scene-card" key={scene.code}>
+                              <a
+                                className="sample-scene-preview"
+                                href={scene.src}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={`เปิดภาพตัวอย่าง ${scene.code} ขนาดเต็ม`}
+                              >
+                                <img src={scene.src} alt={`ตัวอย่าง ${group.label} ${scene.code}`} loading="lazy" />
+                                <span className={scene.category}>{scene.code}</span>
+                              </a>
+                              <a href={scene.src} download={`${scene.code}-${scene.category}-pass.png`}>
+                                ดาวน์โหลด <span aria-hidden="true">↓</span>
+                              </a>
+                            </article>
+                          ))}
+                      </div>
+                    </section>
+                  ))}
+                </details>
                 <small>ฉากตัวอย่างใช้ชุดข้อมูลจำลองเพื่อทดสอบระบบ โดยไม่ต้องเชื่อมต่อโมเดล AI ตรวจจับ</small>
               </div>
             ) : null}
